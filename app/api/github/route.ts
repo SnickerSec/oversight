@@ -16,7 +16,7 @@ const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 // Railway data cache (5 minute TTL to avoid rate limits)
 const RAILWAY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in ms
 interface RailwayCacheEntry {
-  data: Map<string, RailwayServiceMapping & { deployment?: { status: string; url?: string; createdAt: string } }>;
+  data: RailwayDataResult;
   timestamp: number;
 }
 let railwayCache: RailwayCacheEntry | null = null;
@@ -343,6 +343,26 @@ interface RailwayServiceMapping {
   repo: string;
 }
 
+// Standalone Railway project (not linked to a GitHub repo)
+interface RailwayStandaloneProject {
+  projectId: string;
+  projectName: string;
+  serviceId: string;
+  serviceName: string;
+  environmentId: string;
+  environmentName: string;
+  deployment?: {
+    status: string;
+    url?: string;
+    createdAt: string;
+  };
+}
+
+interface RailwayDataResult {
+  repoMap: Map<string, RailwayServiceMapping & { deployment?: { status: string; url?: string; createdAt: string } }>;
+  standaloneProjects: RailwayStandaloneProject[];
+}
+
 interface RailwayWorkspacesResponse {
   me: {
     workspaces: Array<{
@@ -393,10 +413,11 @@ interface RailwayTeamProjectsResponse {
   };
 }
 
-async function fetchRailwayData(): Promise<Map<string, RailwayServiceMapping & { deployment?: { status: string; url?: string; createdAt: string } }>> {
+async function fetchRailwayData(): Promise<RailwayDataResult> {
   const repoMap = new Map<string, RailwayServiceMapping & { deployment?: { status: string; url?: string; createdAt: string } }>();
+  const standaloneProjects: RailwayStandaloneProject[] = [];
 
-  if (!RAILWAY_TOKEN) return repoMap;
+  if (!RAILWAY_TOKEN) return { repoMap, standaloneProjects };
 
   // Check cache first
   if (railwayCache && (Date.now() - railwayCache.timestamp) < RAILWAY_CACHE_TTL) {
@@ -416,12 +437,12 @@ async function fetchRailwayData(): Promise<Map<string, RailwayServiceMapping & {
       }),
     });
 
-    if (!workspacesResponse.ok) return repoMap;
+    if (!workspacesResponse.ok) return { repoMap, standaloneProjects };
 
     const workspacesData: RailwayGraphQLResponse<RailwayWorkspacesResponse> = await workspacesResponse.json();
     const workspaces = workspacesData.data?.me?.workspaces || [];
 
-    if (workspaces.length === 0) return repoMap;
+    if (workspaces.length === 0) return { repoMap, standaloneProjects };
 
     // Fetch projects from all teams
     const allProjects: Array<{
@@ -488,10 +509,11 @@ async function fetchRailwayData(): Promise<Map<string, RailwayServiceMapping & {
       }
     }
 
-    if (allProjects.length === 0) return repoMap;
+    if (allProjects.length === 0) return { repoMap, standaloneProjects };
 
-    // Build mapping of repos to Railway services
+    // Build mapping of repos to Railway services and track standalone projects
     const servicesToFetch: RailwayServiceMapping[] = [];
+    const standaloneServicesToFetch: RailwayStandaloneProject[] = [];
 
     for (const project of allProjects) {
       const environments = project.environments?.edges?.map(e => e.node) || [];
@@ -504,6 +526,7 @@ async function fetchRailwayData(): Promise<Map<string, RailwayServiceMapping & {
       for (const { node: service } of project.services?.edges || []) {
         const repoTrigger = service.repoTriggers?.edges?.[0]?.node;
         if (repoTrigger?.repository) {
+          // Service linked to a GitHub repo
           const mapping: RailwayServiceMapping = {
             projectId: project.id,
             projectName: project.name,
@@ -515,6 +538,17 @@ async function fetchRailwayData(): Promise<Map<string, RailwayServiceMapping & {
           };
           servicesToFetch.push(mapping);
           repoMap.set(repoTrigger.repository.toLowerCase(), mapping);
+        } else {
+          // Standalone service (not linked to GitHub)
+          const standaloneProject: RailwayStandaloneProject = {
+            projectId: project.id,
+            projectName: project.name,
+            serviceId: service.id,
+            serviceName: service.name,
+            environmentId: prodEnv.id,
+            environmentName: prodEnv.name,
+          };
+          standaloneServicesToFetch.push(standaloneProject);
         }
       }
     }
@@ -595,13 +629,74 @@ async function fetchRailwayData(): Promise<Map<string, RailwayServiceMapping & {
       })
     );
 
-    // Update cache
-    railwayCache = { data: repoMap, timestamp: Date.now() };
+    // Fetch deployments for standalone services
+    await Promise.all(
+      standaloneServicesToFetch.map(async (project) => {
+        try {
+          const deployResponse = await fetch(RAILWAY_API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${RAILWAY_TOKEN}`,
+            },
+            body: JSON.stringify({
+              query: `
+                query($projectId: String!, $serviceId: String!, $environmentId: String!) {
+                  deployments(
+                    first: 1
+                    input: {
+                      projectId: $projectId
+                      serviceId: $serviceId
+                      environmentId: $environmentId
+                    }
+                  ) {
+                    edges {
+                      node {
+                        id
+                        status
+                        createdAt
+                        staticUrl
+                      }
+                    }
+                  }
+                }
+              `,
+              variables: {
+                projectId: project.projectId,
+                serviceId: project.serviceId,
+                environmentId: project.environmentId,
+              },
+            }),
+          });
 
-    return repoMap;
+          if (deployResponse.ok) {
+            const deployData: RailwayGraphQLResponse<RailwayDeploymentsResponse> = await deployResponse.json();
+            const deployment = deployData.data?.deployments?.edges?.[0]?.node;
+            if (deployment) {
+              project.deployment = {
+                status: deployment.status,
+                url: deployment.staticUrl,
+                createdAt: deployment.createdAt,
+              };
+            }
+          }
+        } catch {
+          // Ignore individual deployment fetch errors
+        }
+      })
+    );
+
+    // Add standalone projects to the result
+    standaloneProjects.push(...standaloneServicesToFetch);
+
+    // Update cache
+    const result = { repoMap, standaloneProjects };
+    railwayCache = { data: result, timestamp: Date.now() };
+
+    return result;
   } catch (error) {
     console.error('Railway fetch error:', error);
-    return repoMap;
+    return { repoMap, standaloneProjects };
   }
 }
 
@@ -1206,13 +1301,15 @@ const CACHE_TTL = 30;
 
 async function fetchDashboardData() {
   // Fetch all data in parallel
-  const [repos, railwayMap, supabaseMap, gcpData, elevenLabsData] = await Promise.all([
+  const [repos, railwayData, supabaseMap, gcpData, elevenLabsData] = await Promise.all([
     fetchUserRepos(),
     fetchRailwayData(),
     fetchSupabaseData(),
     fetchGCPData(),
     fetchElevenLabsData(),
   ]);
+
+  const { repoMap: railwayMap, standaloneProjects: railwayStandaloneProjects } = railwayData;
 
   const reposWithDetails = await Promise.all(
     repos.map(async (repo) => {
@@ -1296,6 +1393,7 @@ async function fetchDashboardData() {
     hasElevenLabsToken: !!ELEVENLABS_API_KEY,
     gcp: gcpData,
     elevenLabs: elevenLabsData,
+    railwayStandaloneProjects,
   };
 }
 

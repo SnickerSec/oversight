@@ -7,10 +7,25 @@ import { RepoWithDetails } from '@/lib/github';
 import { getRailwayStatusColor, getRailwayStatusLabel, getRailwayStatusBgColor } from '@/lib/railway';
 import { timeAgo } from '@/lib/utils';
 
+interface RailwayStandaloneProject {
+  projectId: string;
+  projectName: string;
+  serviceId: string;
+  serviceName: string;
+  environmentId: string;
+  environmentName: string;
+  deployment?: {
+    status: string;
+    url?: string;
+    createdAt: string;
+  };
+}
+
 interface DashboardData {
   repos: RepoWithDetails[];
   hasToken: boolean;
   hasRailwayToken: boolean;
+  railwayStandaloneProjects?: RailwayStandaloneProject[];
 }
 
 type StatusFilter = 'all' | 'success' | 'failed' | 'deploying';
@@ -39,20 +54,64 @@ export default function RailwayPage() {
 
   const repos = data?.repos || [];
   const hasRailwayToken = data?.hasRailwayToken ?? false;
+  const standaloneProjects = data?.railwayStandaloneProjects || [];
 
   // Get repos with Railway deployments
   const railwayRepos = useMemo(() => {
     return repos.filter(repo => repo.railway);
   }, [repos]);
 
-  // Filter repos
-  const filteredRepos = useMemo(() => {
-    let result = railwayRepos;
+  // Combine all Railway projects (linked + standalone)
+  type RailwayProject = {
+    type: 'linked' | 'standalone';
+    id: string;
+    projectId: string;
+    projectName: string;
+    serviceName: string;
+    environmentName: string;
+    deploymentStatus?: string;
+    deploymentUrl?: string;
+    lastDeployedAt?: string;
+    repo?: RepoWithDetails;
+  };
+
+  const allRailwayProjects: RailwayProject[] = useMemo(() => {
+    const linked: RailwayProject[] = railwayRepos.map(repo => ({
+      type: 'linked' as const,
+      id: `linked-${repo.id}`,
+      projectId: repo.railway!.projectId,
+      projectName: repo.railway!.projectName,
+      serviceName: repo.railway!.serviceName,
+      environmentName: repo.railway!.environmentName,
+      deploymentStatus: repo.railway!.deploymentStatus,
+      deploymentUrl: repo.railway!.deploymentUrl,
+      lastDeployedAt: repo.railway!.lastDeployedAt,
+      repo,
+    }));
+
+    const standalone: RailwayProject[] = standaloneProjects.map(project => ({
+      type: 'standalone' as const,
+      id: `standalone-${project.serviceId}`,
+      projectId: project.projectId,
+      projectName: project.projectName,
+      serviceName: project.serviceName,
+      environmentName: project.environmentName,
+      deploymentStatus: project.deployment?.status,
+      deploymentUrl: project.deployment?.url,
+      lastDeployedAt: project.deployment?.createdAt,
+    }));
+
+    return [...linked, ...standalone];
+  }, [railwayRepos, standaloneProjects]);
+
+  // Filter projects
+  const filteredProjects = useMemo(() => {
+    let result = allRailwayProjects;
 
     // Filter by status
     if (statusFilter !== 'all') {
-      result = result.filter(repo => {
-        const status = repo.railway?.deploymentStatus?.toUpperCase();
+      result = result.filter(project => {
+        const status = project.deploymentStatus?.toUpperCase();
         switch (statusFilter) {
           case 'success':
             return status === 'SUCCESS';
@@ -69,23 +128,23 @@ export default function RailwayPage() {
     // Filter by search
     if (search) {
       const searchLower = search.toLowerCase();
-      result = result.filter(repo =>
-        repo.name.toLowerCase().includes(searchLower) ||
-        repo.railway?.projectName.toLowerCase().includes(searchLower) ||
-        repo.railway?.serviceName.toLowerCase().includes(searchLower)
+      result = result.filter(project =>
+        project.projectName.toLowerCase().includes(searchLower) ||
+        project.serviceName.toLowerCase().includes(searchLower) ||
+        project.repo?.name.toLowerCase().includes(searchLower)
       );
     }
 
     return result;
-  }, [railwayRepos, statusFilter, search]);
+  }, [allRailwayProjects, statusFilter, search]);
 
   // Stats
   const stats = useMemo(() => ({
-    total: railwayRepos.length,
-    live: railwayRepos.filter(r => r.railway?.deploymentStatus?.toUpperCase() === 'SUCCESS').length,
-    failed: railwayRepos.filter(r => ['FAILED', 'CRASHED'].includes(r.railway?.deploymentStatus?.toUpperCase() || '')).length,
-    deploying: railwayRepos.filter(r => ['DEPLOYING', 'BUILDING', 'INITIALIZING'].includes(r.railway?.deploymentStatus?.toUpperCase() || '')).length,
-  }), [railwayRepos]);
+    total: allRailwayProjects.length,
+    live: allRailwayProjects.filter(p => p.deploymentStatus?.toUpperCase() === 'SUCCESS').length,
+    failed: allRailwayProjects.filter(p => ['FAILED', 'CRASHED'].includes(p.deploymentStatus?.toUpperCase() || '')).length,
+    deploying: allRailwayProjects.filter(p => ['DEPLOYING', 'BUILDING', 'INITIALIZING'].includes(p.deploymentStatus?.toUpperCase() || '')).length,
+  }), [allRailwayProjects]);
 
   if (error) {
     return (
@@ -225,34 +284,39 @@ export default function RailwayPage() {
 
       {/* Results */}
       <div className="text-sm text-[var(--text-muted)]">
-        Showing {filteredRepos.length} of {railwayRepos.length} deployments
+        Showing {filteredProjects.length} of {allRailwayProjects.length} deployments
       </div>
 
       {/* Deployments List */}
-      {filteredRepos.length === 0 ? (
+      {filteredProjects.length === 0 ? (
         <div className="card text-center py-12">
           <RailwayLogo className="w-12 h-12 mx-auto mb-3 text-[var(--text-muted)]" />
           <p className="text-[var(--text-muted)]">
-            {railwayRepos.length === 0
+            {allRailwayProjects.length === 0
               ? 'No Railway deployments found'
               : 'No deployments match your filters'}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredRepos.map((repo) => (
-            <div key={repo.id} className="card !p-4">
+          {filteredProjects.map((project) => (
+            <div key={project.id} className="card !p-4">
               <div className="flex items-start gap-4">
                 {/* Status Indicator */}
-                <div className={`w-3 h-3 rounded-full mt-1.5 ${getRailwayStatusBgColor(repo.railway?.deploymentStatus)}`} />
+                <div className={`w-3 h-3 rounded-full mt-1.5 ${getRailwayStatusBgColor(project.deploymentStatus)}`} />
 
                 {/* Main Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
-                    <h3 className="font-semibold">{repo.railway?.projectName}</h3>
-                    <span className={`text-sm ${getRailwayStatusColor(repo.railway?.deploymentStatus)}`}>
-                      {getRailwayStatusLabel(repo.railway?.deploymentStatus)}
+                    <h3 className="font-semibold">{project.projectName}</h3>
+                    <span className={`text-sm ${getRailwayStatusColor(project.deploymentStatus)}`}>
+                      {getRailwayStatusLabel(project.deploymentStatus)}
                     </span>
+                    {project.type === 'standalone' && (
+                      <span className="px-2 py-0.5 text-xs bg-[var(--accent-orange)] text-white rounded">
+                        Standalone
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-muted)]">
@@ -260,28 +324,37 @@ export default function RailwayPage() {
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"/>
                       </svg>
-                      Service: {repo.railway?.serviceName}
+                      Service: {project.serviceName}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/>
-                      </svg>
-                      <Link href={repo.html_url} target="_blank" className="text-[var(--accent)] hover:underline">
-                        {repo.name}
-                      </Link>
-                    </span>
-                    <span>Env: {repo.railway?.environmentName}</span>
-                    {repo.railway?.lastDeployedAt && (
-                      <span>Deployed: {timeAgo(repo.railway.lastDeployedAt)}</span>
+                    {project.repo ? (
+                      <span className="flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+                          <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/>
+                        </svg>
+                        <Link href={project.repo.html_url} target="_blank" className="text-[var(--accent)] hover:underline">
+                          {project.repo.name}
+                        </Link>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-[var(--text-muted)]">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        Not linked to GitHub
+                      </span>
+                    )}
+                    <span>Env: {project.environmentName}</span>
+                    {project.lastDeployedAt && (
+                      <span>Deployed: {timeAgo(project.lastDeployedAt)}</span>
                     )}
                   </div>
                 </div>
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 shrink-0">
-                  {repo.railway?.deploymentUrl && (
+                  {project.deploymentUrl && (
                     <a
-                      href={`https://${repo.railway.deploymentUrl}`}
+                      href={`https://${project.deploymentUrl}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-3 py-1.5 text-sm bg-[var(--accent-green)] text-white rounded-md hover:opacity-90 flex items-center gap-1"
@@ -293,7 +366,7 @@ export default function RailwayPage() {
                     </a>
                   )}
                   <a
-                    href={`https://railway.app/project/${repo.railway?.projectId}`}
+                    href={`https://railway.app/project/${project.projectId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-3 py-1.5 text-sm border border-[var(--card-border)] rounded-md hover:bg-[var(--card-border)] flex items-center gap-1"
