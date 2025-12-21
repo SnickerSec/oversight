@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withCache } from '@/lib/redis';
 
 const GITHUB_USERNAME = 'SnickerSec';
 const BASE_URL = 'https://api.github.com';
@@ -1200,100 +1201,109 @@ async function fetchElevenLabsData(): Promise<ElevenLabsData> {
   return result;
 }
 
+// Cache TTL in seconds (30 seconds for dashboard data)
+const CACHE_TTL = 30;
+
+async function fetchDashboardData() {
+  // Fetch all data in parallel
+  const [repos, railwayMap, supabaseMap, gcpData, elevenLabsData] = await Promise.all([
+    fetchUserRepos(),
+    fetchRailwayData(),
+    fetchSupabaseData(),
+    fetchGCPData(),
+    fetchElevenLabsData(),
+  ]);
+
+  const reposWithDetails = await Promise.all(
+    repos.map(async (repo) => {
+      const [
+        commits,
+        issues,
+        pullRequests,
+        languages,
+        communityProfile,
+        dependabotAlerts,
+        codeScanningAlerts,
+        secretScanningAlerts,
+        workflowRuns,
+      ] = await Promise.all([
+        fetchRepoCommits(repo.name),
+        fetchRepoIssues(repo.name),
+        fetchRepoPRs(repo.name),
+        fetchRepoLanguages(repo.name),
+        fetchCommunityProfile(repo.name),
+        fetchDependabotAlerts(repo.name),
+        fetchCodeScanningAlerts(repo.name),
+        fetchSecretScanningAlerts(repo.name),
+        fetchWorkflowRuns(repo.name),
+      ]);
+
+      // Check if this repo has a Railway deployment
+      const railwayKey = `${GITHUB_USERNAME}/${repo.name}`.toLowerCase();
+      const railwayInfo = railwayMap.get(railwayKey);
+
+      // Check if this repo has a Supabase project (match by repo name)
+      const supabaseInfo = supabaseMap.get(repo.name.toLowerCase());
+
+      return {
+        ...repo,
+        commits,
+        issues,
+        pullRequests,
+        languages,
+        workflowRuns,
+        security: {
+          hasSecurityPolicy: !!communityProfile?.files?.security_policy,
+          hasLicense: !!repo.license,
+          licenseName: repo.license?.name || null,
+          hasCodeOfConduct: !!communityProfile?.files?.code_of_conduct,
+          hasContributing: !!communityProfile?.files?.contributing,
+          healthPercentage: communityProfile?.health_percentage || 0,
+        },
+        securityAlerts: {
+          dependabot: dependabotAlerts,
+          codeScanning: codeScanningAlerts,
+          secretScanning: secretScanningAlerts,
+        },
+        railway: railwayInfo ? {
+          projectId: railwayInfo.projectId,
+          projectName: railwayInfo.projectName,
+          serviceId: railwayInfo.serviceId,
+          serviceName: railwayInfo.serviceName,
+          environmentName: railwayInfo.environmentName,
+          deploymentStatus: railwayInfo.deployment?.status,
+          deploymentUrl: railwayInfo.deployment?.url,
+          lastDeployedAt: railwayInfo.deployment?.createdAt,
+        } : undefined,
+        supabase: supabaseInfo ? {
+          projectId: supabaseInfo.projectId,
+          projectName: supabaseInfo.projectName,
+          region: supabaseInfo.region,
+          status: supabaseInfo.status,
+          createdAt: supabaseInfo.createdAt,
+          advisors: supabaseInfo.advisors,
+        } : undefined,
+      };
+    })
+  );
+
+  return {
+    repos: reposWithDetails,
+    hasToken: !!GITHUB_TOKEN,
+    hasRailwayToken: !!RAILWAY_TOKEN,
+    hasSupabaseToken: !!SUPABASE_ACCESS_TOKEN,
+    hasGCPToken: !!(GCP_PROJECT_ID && GCP_SERVICE_ACCOUNT_KEY),
+    hasElevenLabsToken: !!ELEVENLABS_API_KEY,
+    gcp: gcpData,
+    elevenLabs: elevenLabsData,
+  };
+}
+
 export async function GET() {
   try {
-    // Fetch all data in parallel
-    const [repos, railwayMap, supabaseMap, gcpData, elevenLabsData] = await Promise.all([
-      fetchUserRepos(),
-      fetchRailwayData(),
-      fetchSupabaseData(),
-      fetchGCPData(),
-      fetchElevenLabsData(),
-    ]);
-
-    const reposWithDetails = await Promise.all(
-      repos.map(async (repo) => {
-        const [
-          commits,
-          issues,
-          pullRequests,
-          languages,
-          communityProfile,
-          dependabotAlerts,
-          codeScanningAlerts,
-          secretScanningAlerts,
-          workflowRuns,
-        ] = await Promise.all([
-          fetchRepoCommits(repo.name),
-          fetchRepoIssues(repo.name),
-          fetchRepoPRs(repo.name),
-          fetchRepoLanguages(repo.name),
-          fetchCommunityProfile(repo.name),
-          fetchDependabotAlerts(repo.name),
-          fetchCodeScanningAlerts(repo.name),
-          fetchSecretScanningAlerts(repo.name),
-          fetchWorkflowRuns(repo.name),
-        ]);
-
-        // Check if this repo has a Railway deployment
-        const railwayKey = `${GITHUB_USERNAME}/${repo.name}`.toLowerCase();
-        const railwayInfo = railwayMap.get(railwayKey);
-
-        // Check if this repo has a Supabase project (match by repo name)
-        const supabaseInfo = supabaseMap.get(repo.name.toLowerCase());
-
-        return {
-          ...repo,
-          commits,
-          issues,
-          pullRequests,
-          languages,
-          workflowRuns,
-          security: {
-            hasSecurityPolicy: !!communityProfile?.files?.security_policy,
-            hasLicense: !!repo.license,
-            licenseName: repo.license?.name || null,
-            hasCodeOfConduct: !!communityProfile?.files?.code_of_conduct,
-            hasContributing: !!communityProfile?.files?.contributing,
-            healthPercentage: communityProfile?.health_percentage || 0,
-          },
-          securityAlerts: {
-            dependabot: dependabotAlerts,
-            codeScanning: codeScanningAlerts,
-            secretScanning: secretScanningAlerts,
-          },
-          railway: railwayInfo ? {
-            projectId: railwayInfo.projectId,
-            projectName: railwayInfo.projectName,
-            serviceId: railwayInfo.serviceId,
-            serviceName: railwayInfo.serviceName,
-            environmentName: railwayInfo.environmentName,
-            deploymentStatus: railwayInfo.deployment?.status,
-            deploymentUrl: railwayInfo.deployment?.url,
-            lastDeployedAt: railwayInfo.deployment?.createdAt,
-          } : undefined,
-          supabase: supabaseInfo ? {
-            projectId: supabaseInfo.projectId,
-            projectName: supabaseInfo.projectName,
-            region: supabaseInfo.region,
-            status: supabaseInfo.status,
-            createdAt: supabaseInfo.createdAt,
-            advisors: supabaseInfo.advisors,
-          } : undefined,
-        };
-      })
-    );
-
-    return NextResponse.json({
-      repos: reposWithDetails,
-      hasToken: !!GITHUB_TOKEN,
-      hasRailwayToken: !!RAILWAY_TOKEN,
-      hasSupabaseToken: !!SUPABASE_ACCESS_TOKEN,
-      hasGCPToken: !!(GCP_PROJECT_ID && GCP_SERVICE_ACCOUNT_KEY),
-      hasElevenLabsToken: !!ELEVENLABS_API_KEY,
-      gcp: gcpData,
-      elevenLabs: elevenLabsData,
-    });
+    // Use Redis cache if available, otherwise fetch directly
+    const data = await withCache('dashboard:data', fetchDashboardData, CACHE_TTL);
+    return NextResponse.json(data);
   } catch (error) {
     console.error('GitHub API error:', error);
     return NextResponse.json(

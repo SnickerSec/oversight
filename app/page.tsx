@@ -84,7 +84,7 @@ export default function Dashboard() {
   if (isLoading || !repos) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="card animate-pulse">
               <div className="h-5 w-5 bg-[var(--card-border)] rounded mx-auto mb-2" />
@@ -163,7 +163,7 @@ export default function Dashboard() {
       </div>
 
       {/* Integration Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
 
         {/* Repositories Card */}
         <Link href="/repos" className="card hover:border-[var(--accent)] transition-colors">

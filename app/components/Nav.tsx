@@ -111,12 +111,30 @@ export default function Nav() {
 
 export function NavLinks() {
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const { data } = useSWR<DashboardData>('/api/github-nav', fetchDashboardData, {
     refreshInterval: 60000,
     revalidateOnFocus: true,
     revalidateIfStale: true,
     revalidateOnMount: true,
   });
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   // Calculate total security alerts
   const totalAlerts = data?.repos ? data.repos.reduce((total, repo) => {
@@ -128,7 +146,7 @@ export function NavLinks() {
 
   const links = [
     { href: '/', label: 'Dashboard' },
-    { href: '/repos', label: 'Repositories' },
+    { href: '/repos', label: 'Repos' },
     { href: '/security', label: 'Security', badge: totalAlerts || undefined },
     { href: '/railway', label: 'Railway' },
     { href: '/supabase', label: 'Supabase' },
@@ -137,29 +155,79 @@ export function NavLinks() {
   ];
 
   return (
-    <nav className="flex items-center gap-1">
-      {links.map((link) => (
-        <Link
-          key={link.href}
-          href={link.href}
-          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors relative ${
-            pathname === link.href
-              ? 'bg-[var(--accent)] text-white'
-              : 'text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-border)]'
-          }`}
-        >
-          {link.label}
-          {link.badge !== undefined && (
-            <span className={`ml-1.5 px-1.5 py-0.5 text-xs font-semibold rounded ${
+    <div ref={menuRef}>
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        className="lg:hidden p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-border)] transition-colors"
+        aria-label="Toggle menu"
+      >
+        {mobileMenuOpen ? (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        )}
+      </button>
+
+      {/* Desktop nav */}
+      <nav className="hidden lg:flex items-center gap-1">
+        {links.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors relative ${
               pathname === link.href
-                ? 'bg-white text-[var(--accent)]'
-                : 'bg-[var(--accent-red)] text-white'
-            }`}>
-              {link.badge}
-            </span>
-          )}
-        </Link>
-      ))}
-    </nav>
+                ? 'bg-[var(--accent)] text-white'
+                : 'text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-border)]'
+            }`}
+          >
+            {link.label}
+            {link.badge !== undefined && (
+              <span className={`ml-1.5 px-1.5 py-0.5 text-xs font-semibold rounded ${
+                pathname === link.href
+                  ? 'bg-white text-[var(--accent)]'
+                  : 'bg-[var(--accent-red)] text-white'
+              }`}>
+                {link.badge}
+              </span>
+            )}
+          </Link>
+        ))}
+      </nav>
+
+      {/* Mobile nav dropdown */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden absolute left-0 right-0 top-full mt-1 mx-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-lg z-50 overflow-hidden">
+          <nav className="flex flex-col p-2">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`px-4 py-3 rounded-md text-sm font-medium transition-colors flex items-center justify-between ${
+                  pathname === link.href
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-border)]'
+                }`}
+              >
+                {link.label}
+                {link.badge !== undefined && (
+                  <span className={`px-2 py-0.5 text-xs font-semibold rounded ${
+                    pathname === link.href
+                      ? 'bg-white text-[var(--accent)]'
+                      : 'bg-[var(--accent-red)] text-white'
+                  }`}>
+                    {link.badge}
+                  </span>
+                )}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      )}
+    </div>
   );
 }
