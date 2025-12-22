@@ -509,13 +509,23 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
       }
     }
 
-    if (allProjects.length === 0) return { repoMap, standaloneProjects };
+    // Deduplicate projects by ID (same project can appear in multiple workspaces)
+    const seenProjectIds = new Set<string>();
+    const uniqueProjects = allProjects.filter(project => {
+      if (seenProjectIds.has(project.id)) {
+        return false;
+      }
+      seenProjectIds.add(project.id);
+      return true;
+    });
+
+    if (uniqueProjects.length === 0) return { repoMap, standaloneProjects };
 
     // Build mapping of repos to Railway services and track standalone projects
     const servicesToFetch: RailwayServiceMapping[] = [];
     const standaloneServicesToFetch: RailwayStandaloneProject[] = [];
 
-    for (const project of allProjects) {
+    for (const project of uniqueProjects) {
       const environments = project.environments?.edges?.map(e => e.node) || [];
       const prodEnv = environments.find(e =>
         e.name.toLowerCase() === 'production' || e.name.toLowerCase() === 'prod'
