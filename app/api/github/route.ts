@@ -1,17 +1,53 @@
 import { NextResponse } from 'next/server';
 import { withCache } from '@/lib/redis';
+import { getToken } from '@/lib/settings';
 
 const GITHUB_USERNAME = 'SnickerSec';
 const BASE_URL = 'https://api.github.com';
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const RAILWAY_API_URL = 'https://backboard.railway.com/graphql/v2';
-const RAILWAY_TOKEN = process.env.RAILWAY_TOKEN;
 const SUPABASE_API_URL = 'https://api.supabase.com';
-const SUPABASE_ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
-const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID;
-const GCP_SERVICE_ACCOUNT_KEY = process.env.GCP_SERVICE_ACCOUNT_KEY;
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
+
+// Token cache for the current request (populated at request time)
+let tokens: {
+  GITHUB_TOKEN?: string;
+  RAILWAY_TOKEN?: string;
+  SUPABASE_ACCESS_TOKEN?: string;
+  GCP_PROJECT_ID?: string;
+  GCP_SERVICE_ACCOUNT_KEY?: string;
+  ELEVENLABS_API_KEY?: string;
+  SLACK_WEBHOOK_URL?: string;
+} = {};
+
+// Load all tokens from Redis/env at request time
+async function loadTokens() {
+  const [
+    githubToken,
+    railwayToken,
+    supabaseToken,
+    gcpProjectId,
+    gcpServiceAccountKey,
+    elevenlabsKey,
+    slackWebhook,
+  ] = await Promise.all([
+    getToken('GITHUB_TOKEN'),
+    getToken('RAILWAY_TOKEN'),
+    getToken('SUPABASE_ACCESS_TOKEN'),
+    getToken('GCP_PROJECT_ID'),
+    getToken('GCP_SERVICE_ACCOUNT_KEY'),
+    getToken('ELEVENLABS_API_KEY'),
+    getToken('SLACK_WEBHOOK_URL'),
+  ]);
+
+  tokens = {
+    GITHUB_TOKEN: githubToken,
+    RAILWAY_TOKEN: railwayToken,
+    SUPABASE_ACCESS_TOKEN: supabaseToken,
+    GCP_PROJECT_ID: gcpProjectId,
+    GCP_SERVICE_ACCOUNT_KEY: gcpServiceAccountKey,
+    ELEVENLABS_API_KEY: elevenlabsKey,
+    SLACK_WEBHOOK_URL: slackWebhook,
+  };
+}
 
 // Railway data cache (5 minute TTL to avoid rate limits)
 const RAILWAY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in ms
@@ -26,11 +62,11 @@ const previousDeploymentStates = new Map<string, string>();
 
 // Send Slack alert for deployment failures
 async function sendSlackAlert(serviceName: string, projectName: string, status: string, url?: string): Promise<void> {
-  if (!SLACK_WEBHOOK_URL) return;
+  if (!tokens.SLACK_WEBHOOK_URL) return;
 
   try {
     const emoji = status === 'FAILED' ? '🔴' : status === 'CRASHED' ? '💥' : '⚠️';
-    await fetch(SLACK_WEBHOOK_URL, {
+    await fetch(tokens.SLACK_WEBHOOK_URL!, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -170,8 +206,8 @@ function getHeaders() {
   const headers: Record<string, string> = {
     'Accept': 'application/vnd.github.v3+json',
   };
-  if (GITHUB_TOKEN) {
-    headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
+  if (tokens.GITHUB_TOKEN) {
+    headers['Authorization'] = `Bearer ${tokens.GITHUB_TOKEN}`;
   }
   return headers;
 }
@@ -191,7 +227,7 @@ async function fetchGitHub<T>(endpoint: string): Promise<T> {
 
 async function fetchUserRepos(): Promise<Repository[]> {
   // Use authenticated endpoint to include private repos when token is available
-  if (GITHUB_TOKEN) {
+  if (tokens.GITHUB_TOKEN) {
     const allRepos = await fetchGitHub<Repository[]>(`/user/repos?sort=updated&per_page=100&affiliation=owner`);
     // Filter to only repos owned by the user (in case of org repos)
     return allRepos.filter(repo => repo.owner?.login?.toLowerCase() === GITHUB_USERNAME.toLowerCase());
@@ -242,7 +278,7 @@ async function fetchCommunityProfile(repoName: string): Promise<CommunityProfile
 }
 
 async function fetchDependabotAlerts(repoName: string): Promise<DependabotAlert[]> {
-  if (!GITHUB_TOKEN) return [];
+  if (!tokens.GITHUB_TOKEN) return [];
   try {
     return await fetchGitHub<DependabotAlert[]>(`/repos/${GITHUB_USERNAME}/${repoName}/dependabot/alerts?state=open&per_page=100`);
   } catch {
@@ -251,7 +287,7 @@ async function fetchDependabotAlerts(repoName: string): Promise<DependabotAlert[
 }
 
 async function fetchCodeScanningAlerts(repoName: string): Promise<CodeScanningAlert[]> {
-  if (!GITHUB_TOKEN) return [];
+  if (!tokens.GITHUB_TOKEN) return [];
   try {
     return await fetchGitHub<CodeScanningAlert[]>(`/repos/${GITHUB_USERNAME}/${repoName}/code-scanning/alerts?state=open&per_page=100`);
   } catch {
@@ -260,7 +296,7 @@ async function fetchCodeScanningAlerts(repoName: string): Promise<CodeScanningAl
 }
 
 async function fetchSecretScanningAlerts(repoName: string): Promise<SecretScanningAlert[]> {
-  if (!GITHUB_TOKEN) return [];
+  if (!tokens.GITHUB_TOKEN) return [];
   try {
     return await fetchGitHub<SecretScanningAlert[]>(`/repos/${GITHUB_USERNAME}/${repoName}/secret-scanning/alerts?state=open&per_page=100`);
   } catch {
@@ -417,7 +453,7 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
   const repoMap = new Map<string, RailwayServiceMapping & { deployment?: { status: string; url?: string; createdAt: string } }>();
   const standaloneProjects: RailwayStandaloneProject[] = [];
 
-  if (!RAILWAY_TOKEN) return { repoMap, standaloneProjects };
+  if (!tokens.RAILWAY_TOKEN) return { repoMap, standaloneProjects };
 
   // Check cache first
   if (railwayCache && (Date.now() - railwayCache.timestamp) < RAILWAY_CACHE_TTL) {
@@ -430,7 +466,7 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${RAILWAY_TOKEN}`,
+        'Authorization': `Bearer ${tokens.RAILWAY_TOKEN}`,
       },
       body: JSON.stringify({
         query: `query { me { workspaces { id name team { id name } } } }`,
@@ -457,7 +493,7 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${RAILWAY_TOKEN}`,
+          'Authorization': `Bearer ${tokens.RAILWAY_TOKEN}`,
         },
         body: JSON.stringify({
           query: `
@@ -571,7 +607,7 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${RAILWAY_TOKEN}`,
+              'Authorization': `Bearer ${tokens.RAILWAY_TOKEN}`,
             },
             body: JSON.stringify({
               query: `
@@ -647,7 +683,7 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${RAILWAY_TOKEN}`,
+              'Authorization': `Bearer ${tokens.RAILWAY_TOKEN}`,
             },
             body: JSON.stringify({
               query: `
@@ -785,10 +821,10 @@ async function fetchSupabaseAdvisors(projectId: string): Promise<SupabaseAdvisor
   try {
     const [perfResponse, secResponse] = await Promise.all([
       fetch(`${SUPABASE_API_URL}/v1/projects/${projectId}/advisors/performance`, {
-        headers: { 'Authorization': `Bearer ${SUPABASE_ACCESS_TOKEN}` },
+        headers: { 'Authorization': `Bearer ${tokens.SUPABASE_ACCESS_TOKEN}` },
       }),
       fetch(`${SUPABASE_API_URL}/v1/projects/${projectId}/advisors/security`, {
-        headers: { 'Authorization': `Bearer ${SUPABASE_ACCESS_TOKEN}` },
+        headers: { 'Authorization': `Bearer ${tokens.SUPABASE_ACCESS_TOKEN}` },
       }),
     ]);
 
@@ -810,12 +846,12 @@ async function fetchSupabaseAdvisors(projectId: string): Promise<SupabaseAdvisor
 async function fetchSupabaseData(): Promise<Map<string, SupabaseMapping>> {
   const projectMap = new Map<string, SupabaseMapping>();
 
-  if (!SUPABASE_ACCESS_TOKEN) return projectMap;
+  if (!tokens.SUPABASE_ACCESS_TOKEN) return projectMap;
 
   try {
     const response = await fetch(`${SUPABASE_API_URL}/v1/projects`, {
       headers: {
-        'Authorization': `Bearer ${SUPABASE_ACCESS_TOKEN}`,
+        'Authorization': `Bearer ${tokens.SUPABASE_ACCESS_TOKEN}`,
         'Content-Type': 'application/json',
       },
     });
@@ -964,10 +1000,10 @@ interface GCPData {
 }
 
 async function getGCPAccessToken(): Promise<string | null> {
-  if (!GCP_SERVICE_ACCOUNT_KEY) return null;
+  if (!tokens.GCP_SERVICE_ACCOUNT_KEY) return null;
 
   try {
-    const key = JSON.parse(GCP_SERVICE_ACCOUNT_KEY);
+    const key = JSON.parse(tokens.GCP_SERVICE_ACCOUNT_KEY);
     const now = Math.floor(Date.now() / 1000);
 
     // Create JWT header and claim
@@ -1020,10 +1056,10 @@ async function fetchGCPData(): Promise<GCPData> {
     compute: [],
     storage: [],
     enabledServices: [],
-    projectId: GCP_PROJECT_ID || null,
+    projectId: tokens.GCP_PROJECT_ID || null,
   };
 
-  if (!GCP_PROJECT_ID || !GCP_SERVICE_ACCOUNT_KEY) return result;
+  if (!tokens.GCP_PROJECT_ID || !tokens.GCP_SERVICE_ACCOUNT_KEY) return result;
 
   const accessToken = await getGCPAccessToken();
   if (!accessToken) return result;
@@ -1034,23 +1070,23 @@ async function fetchGCPData(): Promise<GCPData> {
     // Fetch all GCP resources in parallel
     const [cloudRunRes, functionsRes, computeRes, storageRes, servicesRes] = await Promise.all([
       // Cloud Run services
-      fetch(`https://run.googleapis.com/v2/projects/${GCP_PROJECT_ID}/locations/-/services`, { headers })
+      fetch(`https://run.googleapis.com/v2/projects/${tokens.GCP_PROJECT_ID}/locations/-/services`, { headers })
         .then(r => r.ok ? r.json() : { services: [] })
         .catch(() => ({ services: [] })),
       // Cloud Functions
-      fetch(`https://cloudfunctions.googleapis.com/v2/projects/${GCP_PROJECT_ID}/locations/-/functions`, { headers })
+      fetch(`https://cloudfunctions.googleapis.com/v2/projects/${tokens.GCP_PROJECT_ID}/locations/-/functions`, { headers })
         .then(r => r.ok ? r.json() : { functions: [] })
         .catch(() => ({ functions: [] })),
       // Compute Engine instances
-      fetch(`https://compute.googleapis.com/compute/v1/projects/${GCP_PROJECT_ID}/aggregated/instances`, { headers })
+      fetch(`https://compute.googleapis.com/compute/v1/projects/${tokens.GCP_PROJECT_ID}/aggregated/instances`, { headers })
         .then(r => r.ok ? r.json() : { items: {} })
         .catch(() => ({ items: {} })),
       // Cloud Storage buckets
-      fetch(`https://storage.googleapis.com/storage/v1/b?project=${GCP_PROJECT_ID}`, { headers })
+      fetch(`https://storage.googleapis.com/storage/v1/b?project=${tokens.GCP_PROJECT_ID}`, { headers })
         .then(r => r.ok ? r.json() : { items: [] })
         .catch(() => ({ items: [] })),
       // Enabled Services
-      fetch(`https://serviceusage.googleapis.com/v1/projects/${GCP_PROJECT_ID}/services?filter=state:ENABLED&pageSize=200`, { headers })
+      fetch(`https://serviceusage.googleapis.com/v1/projects/${tokens.GCP_PROJECT_ID}/services?filter=state:ENABLED&pageSize=200`, { headers })
         .then(async r => {
           if (!r.ok) {
             const err = await r.json().catch(() => ({ error: 'Unknown error' }));
@@ -1108,7 +1144,7 @@ async function fetchGCPData(): Promise<GCPData> {
           };
 
           const metricsResponse = await fetch(
-            `https://monitoring.googleapis.com/v3/projects/${GCP_PROJECT_ID}/timeSeries:query`,
+            `https://monitoring.googleapis.com/v3/projects/${tokens.GCP_PROJECT_ID}/timeSeries:query`,
             {
               method: 'POST',
               headers: {
@@ -1251,9 +1287,9 @@ async function fetchElevenLabsData(): Promise<ElevenLabsData> {
     history: [],
   };
 
-  if (!ELEVENLABS_API_KEY) return result;
+  if (!tokens.ELEVENLABS_API_KEY) return result;
 
-  const headers = { 'xi-api-key': ELEVENLABS_API_KEY };
+  const headers = { 'xi-api-key': tokens.ELEVENLABS_API_KEY };
 
   try {
     const [subRes, voicesRes, historyRes] = await Promise.all([
@@ -1401,11 +1437,11 @@ async function fetchDashboardData() {
 
   return {
     repos: reposWithDetails,
-    hasToken: !!GITHUB_TOKEN,
-    hasRailwayToken: !!RAILWAY_TOKEN,
-    hasSupabaseToken: !!SUPABASE_ACCESS_TOKEN,
-    hasGCPToken: !!(GCP_PROJECT_ID && GCP_SERVICE_ACCOUNT_KEY),
-    hasElevenLabsToken: !!ELEVENLABS_API_KEY,
+    hasToken: !!tokens.GITHUB_TOKEN,
+    hasRailwayToken: !!tokens.RAILWAY_TOKEN,
+    hasSupabaseToken: !!tokens.SUPABASE_ACCESS_TOKEN,
+    hasGCPToken: !!(tokens.GCP_PROJECT_ID && tokens.GCP_SERVICE_ACCOUNT_KEY),
+    hasElevenLabsToken: !!tokens.ELEVENLABS_API_KEY,
     gcp: gcpData,
     elevenLabs: elevenLabsData,
     railwayStandaloneProjects,
@@ -1414,6 +1450,9 @@ async function fetchDashboardData() {
 
 export async function GET() {
   try {
+    // Load tokens from Redis/env before fetching data
+    await loadTokens();
+
     // Use Redis cache if available, otherwise fetch directly
     const data = await withCache('dashboard:data', fetchDashboardData, CACHE_TTL);
     return NextResponse.json(data);
