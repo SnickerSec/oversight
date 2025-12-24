@@ -1,7 +1,7 @@
 'use client';
 
 import { RepoWithDetails } from '@/lib/github';
-import { timeAgo, getSeverityColor } from '@/lib/utils';
+import { timeAgo, getSeverityColor, normalizeSeverity } from '@/lib/utils';
 
 interface SecurityAlertsProps {
   repos: RepoWithDetails[];
@@ -21,21 +21,21 @@ export default function SecurityAlerts({ repos, hasToken }: SecurityAlertsProps)
 
   const totalAlerts = allDependabot.length + allCodeScanning.length + allSecretScanning.length;
 
-  // Count by severity for all alert types
+  // Count by severity for all alert types (using normalized severity)
   const severityCounts = {
     critical:
-      allDependabot.filter(a => a.security_advisory?.severity?.toLowerCase() === 'critical').length +
-      allCodeScanning.filter(a => a.rule?.severity?.toLowerCase() === 'critical').length +
+      allDependabot.filter(a => normalizeSeverity(a.security_advisory?.severity) === 'critical').length +
+      allCodeScanning.filter(a => normalizeSeverity(a.rule?.severity) === 'critical').length +
       allSecretScanning.length, // All secrets are critical
     high:
-      allDependabot.filter(a => a.security_advisory?.severity?.toLowerCase() === 'high').length +
-      allCodeScanning.filter(a => a.rule?.severity?.toLowerCase() === 'high').length,
+      allDependabot.filter(a => normalizeSeverity(a.security_advisory?.severity) === 'high').length +
+      allCodeScanning.filter(a => normalizeSeverity(a.rule?.severity) === 'high').length,
     medium:
-      allDependabot.filter(a => a.security_advisory?.severity?.toLowerCase() === 'medium').length +
-      allCodeScanning.filter(a => a.rule?.severity?.toLowerCase() === 'medium').length,
+      allDependabot.filter(a => normalizeSeverity(a.security_advisory?.severity) === 'medium').length +
+      allCodeScanning.filter(a => normalizeSeverity(a.rule?.severity) === 'medium').length,
     low:
-      allDependabot.filter(a => a.security_advisory?.severity?.toLowerCase() === 'low').length +
-      allCodeScanning.filter(a => a.rule?.severity?.toLowerCase() === 'low').length,
+      allDependabot.filter(a => normalizeSeverity(a.security_advisory?.severity) === 'low').length +
+      allCodeScanning.filter(a => normalizeSeverity(a.rule?.severity) === 'low').length,
   };
 
   if (!hasToken) {
@@ -88,7 +88,7 @@ export default function SecurityAlerts({ repos, hasToken }: SecurityAlertsProps)
                     className="flex gap-2 text-sm border-b border-[var(--card-border)] pb-2 last:border-0 hover:bg-[var(--card-border)] -mx-2 px-2 py-1 rounded"
                   >
                     <span className={`badge h-fit text-xs shrink-0 ${getSeverityColor(alert.security_advisory?.severity)}`}>
-                      {alert.security_advisory?.severity || '?'}
+                      {normalizeSeverity(alert.security_advisory?.severity)}
                     </span>
                     <div className="flex-1 min-w-0 overflow-hidden">
                       <div className="font-medium truncate">
@@ -131,7 +131,7 @@ export default function SecurityAlerts({ repos, hasToken }: SecurityAlertsProps)
                     className="flex gap-2 text-sm border-b border-[var(--card-border)] pb-2 last:border-0 hover:bg-[var(--card-border)] -mx-2 px-2 py-1 rounded"
                   >
                     <span className={`badge h-fit text-xs shrink-0 ${getSeverityColor(alert.rule?.severity)}`}>
-                      {alert.rule?.severity || '?'}
+                      {normalizeSeverity(alert.rule?.severity)}
                     </span>
                     <div className="flex-1 min-w-0 overflow-hidden">
                       <div className="font-medium truncate">

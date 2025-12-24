@@ -19,11 +19,12 @@ export function timeAgo(date: string): string {
 
 /**
  * Returns the Tailwind CSS classes for a security severity level
- * @param severity - Severity level (critical, high, medium, low)
+ * Accepts any severity format and normalizes it before styling
+ * @param severity - Severity level (any format - will be normalized)
  * @returns CSS class string for badge styling
  */
-export function getSeverityColor(severity: string): string {
-  switch (severity?.toLowerCase()) {
+export function getSeverityColor(severity: string | undefined | null): string {
+  switch (normalizeSeverity(severity)) {
     case 'critical':
       return 'bg-[#f85149] text-white';
     case 'high':
@@ -38,12 +39,48 @@ export function getSeverityColor(severity: string): string {
 }
 
 /**
+ * Normalizes different severity rating systems to a unified scale.
+ * Different sources use different terminology:
+ * - Dependabot/CVSS: critical, high, medium, low
+ * - CodeQL/SARIF: error, warning, note
+ * - Some tools: severe, moderate, minor
+ *
+ * @param severity - Raw severity string from any source
+ * @returns Normalized severity: 'critical' | 'high' | 'medium' | 'low' | 'unknown'
+ */
+export function normalizeSeverity(severity: string | undefined | null): string {
+  const s = severity?.toLowerCase()?.trim();
+
+  // Critical level: critical, error, severe
+  if (s === 'critical' || s === 'error' || s === 'severe') {
+    return 'critical';
+  }
+
+  // High level: high
+  if (s === 'high') {
+    return 'high';
+  }
+
+  // Medium level: medium, warning, moderate
+  if (s === 'medium' || s === 'warning' || s === 'moderate') {
+    return 'medium';
+  }
+
+  // Low level: low, note, minor, info, informational
+  if (s === 'low' || s === 'note' || s === 'minor' || s === 'info' || s === 'informational') {
+    return 'low';
+  }
+
+  return 'unknown';
+}
+
+/**
  * Returns the sort order for a severity level (lower = more severe)
- * @param severity - Severity level
+ * @param severity - Severity level (will be normalized first)
  * @returns Numeric sort order (0 = critical, 4 = unknown)
  */
 export function getSeverityOrder(severity: string): number {
-  switch (severity?.toLowerCase()) {
+  switch (normalizeSeverity(severity)) {
     case 'critical':
       return 0;
     case 'high':

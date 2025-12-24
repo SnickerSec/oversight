@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import { RepoWithDetails } from '@/lib/github';
-import { timeAgo, getSeverityColor, getSeverityOrder } from '@/lib/utils';
+import { timeAgo, getSeverityColor, getSeverityOrder, normalizeSeverity } from '@/lib/utils';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -93,7 +93,7 @@ export default function SecurityPage() {
           id: `dep-${repo.name}-${alert.number}`,
           type: 'dependabot',
           repoName: repo.name,
-          severity: alert.security_advisory?.severity || 'unknown',
+          severity: normalizeSeverity(alert.security_advisory?.severity),
           title: alert.security_advisory?.summary || 'Security vulnerability',
           description: alert.security_advisory?.description || '',
           package: alert.security_vulnerability?.package?.name,
@@ -108,7 +108,7 @@ export default function SecurityPage() {
           id: `code-${repo.name}-${alert.number}`,
           type: 'code-scanning',
           repoName: repo.name,
-          severity: alert.rule?.severity || 'unknown',
+          severity: normalizeSeverity(alert.rule?.severity),
           title: alert.rule?.description || alert.rule?.name || 'Code issue',
           description: '',
           path: alert.most_recent_instance?.location?.path,
