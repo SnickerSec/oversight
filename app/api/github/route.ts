@@ -696,8 +696,13 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
       })
     );
 
-    // Add standalone projects to the result
-    standaloneProjects.push(...standaloneServicesToFetch);
+    // Add standalone projects to the result, but filter out services that belong to
+    // projects which already have linked services (to avoid duplicate project names)
+    const linkedProjectIds = new Set(servicesToFetch.map(s => s.projectId));
+    const filteredStandaloneProjects = standaloneServicesToFetch.filter(
+      project => !linkedProjectIds.has(project.projectId)
+    );
+    standaloneProjects.push(...filteredStandaloneProjects);
 
     // Update cache
     const result = { repoMap, standaloneProjects };
