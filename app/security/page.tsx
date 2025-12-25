@@ -119,6 +119,48 @@ export default function SecurityPage() {
     setPollIntervals(prev => ({ ...prev, [repoName]: interval }));
   }, []);
 
+  // Load previous scan results on mount
+  useEffect(() => {
+    async function loadPreviousScans() {
+      try {
+        const response = await fetch('/api/security/scan');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.scans && Array.isArray(data.scans)) {
+            const jobsMap: Record<string, ScanJob> = {};
+            const inProgressScans: { id: string; repoName: string }[] = [];
+
+            data.scans.forEach((scan: ScanJob) => {
+              // Only keep the most recent scan per repo
+              if (!jobsMap[scan.repoName] ||
+                  new Date(scan.startedAt) > new Date(jobsMap[scan.repoName].startedAt)) {
+                jobsMap[scan.repoName] = scan;
+              }
+            });
+
+            // Find any in-progress scans to resume polling
+            Object.values(jobsMap).forEach((scan) => {
+              if (['pending', 'cloning', 'scanning'].includes(scan.status)) {
+                inProgressScans.push({ id: scan.id, repoName: scan.repoName });
+              }
+            });
+
+            setScanJobs(jobsMap);
+
+            // Resume polling for in-progress scans
+            inProgressScans.forEach(({ id, repoName }) => {
+              setScanning(prev => ({ ...prev, [repoName]: true }));
+              pollScanStatus(id, repoName);
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load previous scans:', err);
+      }
+    }
+    loadPreviousScans();
+  }, [pollScanStatus]);
+
   // Trigger a scan
   const handleScan = useCallback(async (repoName: string) => {
     setScanning(prev => ({ ...prev, [repoName]: true }));
