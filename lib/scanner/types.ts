@@ -20,6 +20,7 @@ export interface ScanResults {
   trivy?: TrivyResult;
   gitleaks?: GitleaksResult;
   semgrep?: SemgrepResult;
+  toolErrors?: Record<ScanTool, string>;
 }
 
 // Trivy types

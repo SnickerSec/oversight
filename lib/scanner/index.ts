@@ -90,7 +90,7 @@ export async function startScan(
 
     await updateScanStatus(scanId, { status: 'scanning', progress: 0 });
 
-    const results: ScanResults = {};
+    const results: ScanResults = { toolErrors: {} as Record<ScanTool, string> };
     const toolCount = tools.length;
     let completed = 0;
 
@@ -114,7 +114,9 @@ export async function startScan(
             break;
         }
       } catch (toolError) {
-        console.error(`Tool ${tool} failed:`, toolError);
+        const errorMessage = toolError instanceof Error ? toolError.message : 'Unknown error';
+        console.error(`Tool ${tool} failed:`, errorMessage);
+        results.toolErrors![tool] = errorMessage;
         // Continue with other tools even if one fails
       }
 

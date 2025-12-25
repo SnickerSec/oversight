@@ -568,6 +568,8 @@ export default function SecurityPage() {
                     </svg>
                     <span className="text-[var(--text-muted)]">Trivy:</span>
                     {(() => {
+                      const error = latestCompletedScan.results?.toolErrors?.trivy;
+                      if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
                       const vulns = latestCompletedScan.results?.trivy?.vulnerabilities || [];
                       const critical = vulns.filter(v => v.severity === 'CRITICAL').length;
                       const high = vulns.filter(v => v.severity === 'HIGH').length;
@@ -591,6 +593,8 @@ export default function SecurityPage() {
                     </svg>
                     <span className="text-[var(--text-muted)]">Secrets:</span>
                     {(() => {
+                      const error = latestCompletedScan.results?.toolErrors?.gitleaks;
+                      if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
                       const secrets = latestCompletedScan.results?.gitleaks?.secrets || [];
                       if (secrets.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
                       return <span className="text-[#f85149]">{secrets.length} found</span>;
@@ -603,6 +607,8 @@ export default function SecurityPage() {
                     </svg>
                     <span className="text-[var(--text-muted)]">Code:</span>
                     {(() => {
+                      const error = latestCompletedScan.results?.toolErrors?.semgrep;
+                      if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
                       const findings = latestCompletedScan.results?.semgrep?.findings || [];
                       const errors = findings.filter(f => f.severity === 'ERROR').length;
                       const warnings = findings.filter(f => f.severity === 'WARNING').length;
@@ -616,6 +622,13 @@ export default function SecurityPage() {
                     })()}
                   </div>
                 </div>
+                {/* Show error details if any tools failed */}
+                {latestCompletedScan.results?.toolErrors && Object.keys(latestCompletedScan.results.toolErrors).length > 0 && (
+                  <div className="mt-2 text-xs text-[var(--accent-red)]">
+                    Tools not installed: {Object.keys(latestCompletedScan.results.toolErrors).join(', ')}.
+                    <span className="text-[var(--text-muted)]"> Deploy with Docker to enable scanning.</span>
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => setDismissedScanId(latestCompletedScan.id)}
