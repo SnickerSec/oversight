@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import useSWR from 'swr';
 import { RepoWithDetails } from '@/lib/github';
 import { timeAgo, getSeverityColor, getSeverityOrder, normalizeSeverity } from '@/lib/utils';
+import { ScanJob } from '@/lib/scanner/types';
+import { ScanButton } from '@/app/components/ScanButton';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -11,21 +13,24 @@ interface DashboardData {
 }
 
 type Severity = 'all' | 'critical' | 'high' | 'medium' | 'low';
+type Source = 'all' | 'github' | 'local';
 
 interface UnifiedAlert {
   id: string;
-  type: 'dependabot' | 'code-scanning' | 'secret-scanning';
+  type: 'dependabot' | 'code-scanning' | 'secret-scanning' | 'trivy' | 'gitleaks' | 'semgrep';
+  source: 'github' | 'local';
   repoName: string;
   severity: string;
   title: string;
   description: string;
   package?: string;
   path?: string;
+  line?: number;
   tool?: string;
   cveId?: string | null;
   secretType?: string;
   createdAt: string;
-  htmlUrl: string;
+  htmlUrl?: string;
 }
 
 async function fetchData(): Promise<DashboardData> {
@@ -37,18 +42,21 @@ async function fetchData(): Promise<DashboardData> {
 function getTypeIcon(type: string) {
   switch (type) {
     case 'dependabot':
+    case 'trivy':
       return (
         <svg className="w-4 h-4 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
           <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
         </svg>
       );
     case 'code-scanning':
+    case 'semgrep':
       return (
         <svg className="w-4 h-4 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
           <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
         </svg>
       );
     case 'secret-scanning':
+    case 'gitleaks':
       return (
         <svg className="w-4 h-4 text-[var(--accent-red)]" fill="currentColor" viewBox="0 0 16 16">
           <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
@@ -62,36 +70,170 @@ export default function SecurityPage() {
   const [severity, setSeverity] = useState<Severity>('all');
   const [selectedRepo, setSelectedRepo] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'severity' | 'date' | 'repo'>('severity');
+  const [sourceFilter, setSourceFilter] = useState<Source>('all');
 
-  const { data, error, isLoading } = useSWR<DashboardData>('security', fetchData, {
+  // Scanning state
+  const [scanning, setScanning] = useState<Record<string, boolean>>({});
+  const [scanJobs, setScanJobs] = useState<Record<string, ScanJob>>({});
+  const [pollIntervals, setPollIntervals] = useState<Record<string, NodeJS.Timeout>>({});
+
+  const { data, error, isLoading, mutate } = useSWR<DashboardData>('security', fetchData, {
     refreshInterval: 60000,
   });
 
   const repos = data?.repos || [];
   const hasToken = data?.hasToken ?? false;
 
-  // Get unique repo names that have alerts
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(pollIntervals).forEach(clearInterval);
+    };
+  }, [pollIntervals]);
+
+  // Poll scan status
+  const pollScanStatus = useCallback((scanId: string, repoName: string) => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/security/scan?id=${scanId}`);
+        if (response.ok) {
+          const job: ScanJob = await response.json();
+          setScanJobs(prev => ({ ...prev, [repoName]: job }));
+
+          if (job.status === 'completed' || job.status === 'failed') {
+            clearInterval(interval);
+            setPollIntervals(prev => {
+              const newIntervals = { ...prev };
+              delete newIntervals[repoName];
+              return newIntervals;
+            });
+            setScanning(prev => ({ ...prev, [repoName]: false }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to poll scan status:', err);
+      }
+    }, 2000);
+
+    setPollIntervals(prev => ({ ...prev, [repoName]: interval }));
+  }, []);
+
+  // Trigger a scan
+  const handleScan = useCallback(async (repoName: string) => {
+    setScanning(prev => ({ ...prev, [repoName]: true }));
+
+    try {
+      const response = await fetch('/api/security/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repoName }),
+      });
+
+      if (response.ok) {
+        const { scanId } = await response.json();
+        setScanJobs(prev => ({
+          ...prev,
+          [repoName]: {
+            id: scanId,
+            repoName,
+            repoFullName: `SnickerSec/${repoName}`,
+            status: 'pending',
+            startedAt: new Date().toISOString(),
+            tools: ['trivy', 'gitleaks', 'semgrep'],
+          }
+        }));
+        pollScanStatus(scanId, repoName);
+      } else {
+        const data = await response.json();
+        console.error('Scan failed:', data.error);
+        setScanning(prev => ({ ...prev, [repoName]: false }));
+      }
+    } catch (err) {
+      console.error('Failed to start scan:', err);
+      setScanning(prev => ({ ...prev, [repoName]: false }));
+    }
+  }, [pollScanStatus]);
+
+  // Get unique repo names
   const repoNames = useMemo(() => {
     const names = new Set<string>();
-    repos.forEach(repo => {
-      if (repo.securityAlerts?.dependabot?.length > 0 ||
-          repo.securityAlerts?.codeScanning?.length > 0 ||
-          repo.securityAlerts?.secretScanning?.length > 0) {
-        names.add(repo.name);
-      }
-    });
+    repos.forEach(repo => names.add(repo.name));
     return Array.from(names).sort();
   }, [repos]);
 
-  // Unify all alerts into a single list
+  // Convert local scan results to unified alerts
+  const localScanAlerts = useMemo((): UnifiedAlert[] => {
+    const alerts: UnifiedAlert[] = [];
+
+    Object.entries(scanJobs).forEach(([repoName, job]) => {
+      if (job.status !== 'completed' || !job.results) return;
+
+      // Trivy vulnerabilities
+      job.results.trivy?.vulnerabilities.forEach((vuln, idx) => {
+        alerts.push({
+          id: `trivy-${repoName}-${vuln.id}-${idx}`,
+          type: 'trivy',
+          source: 'local',
+          repoName,
+          severity: vuln.severity,
+          title: vuln.title,
+          description: vuln.description,
+          package: vuln.pkgName,
+          cveId: vuln.id,
+          createdAt: job.completedAt || job.startedAt,
+          htmlUrl: vuln.primaryUrl,
+        });
+      });
+
+      // Gitleaks secrets
+      job.results.gitleaks?.secrets.forEach((secret, idx) => {
+        alerts.push({
+          id: `gitleaks-${repoName}-${secret.file}-${secret.startLine}-${idx}`,
+          type: 'gitleaks',
+          source: 'local',
+          repoName,
+          severity: 'critical',
+          title: secret.description,
+          description: `Found: ${secret.match}`,
+          path: secret.file,
+          line: secret.startLine,
+          secretType: secret.ruleId,
+          createdAt: job.completedAt || job.startedAt,
+        });
+      });
+
+      // Semgrep findings
+      job.results.semgrep?.findings.forEach((finding, idx) => {
+        alerts.push({
+          id: `semgrep-${repoName}-${finding.path}-${finding.startLine}-${idx}`,
+          type: 'semgrep',
+          source: 'local',
+          repoName,
+          severity: finding.severity,
+          title: finding.message,
+          description: `Rule: ${finding.ruleId}`,
+          path: finding.path,
+          line: finding.startLine,
+          tool: 'Semgrep',
+          createdAt: job.completedAt || job.startedAt,
+        });
+      });
+    });
+
+    return alerts;
+  }, [scanJobs]);
+
+  // Unify all alerts (GitHub + local scans)
   const allAlerts = useMemo((): UnifiedAlert[] => {
     const alerts: UnifiedAlert[] = [];
 
+    // GitHub alerts
     repos.forEach(repo => {
       repo.securityAlerts?.dependabot?.forEach(alert => {
         alerts.push({
           id: `dep-${repo.name}-${alert.number}`,
           type: 'dependabot',
+          source: 'github',
           repoName: repo.name,
           severity: normalizeSeverity(alert.security_advisory?.severity),
           title: alert.security_advisory?.summary || 'Security vulnerability',
@@ -107,6 +249,7 @@ export default function SecurityPage() {
         alerts.push({
           id: `code-${repo.name}-${alert.number}`,
           type: 'code-scanning',
+          source: 'github',
           repoName: repo.name,
           severity: normalizeSeverity(alert.rule?.severity),
           title: alert.rule?.description || alert.rule?.name || 'Code issue',
@@ -122,6 +265,7 @@ export default function SecurityPage() {
         alerts.push({
           id: `secret-${repo.name}-${alert.number}`,
           type: 'secret-scanning',
+          source: 'github',
           repoName: repo.name,
           severity: 'critical',
           title: alert.secret_type_display_name || alert.secret_type,
@@ -133,12 +277,20 @@ export default function SecurityPage() {
       });
     });
 
-    return alerts;
-  }, [repos]);
+    // Add local scan alerts
+    alerts.push(...localScanAlerts);
 
-  // Filter and sort function for both alert types
-  const filterAndSort = (alerts: UnifiedAlert[]) => {
+    return alerts;
+  }, [repos, localScanAlerts]);
+
+  // Filter and sort
+  const filterAndSort = useCallback((alerts: UnifiedAlert[]) => {
     let result = alerts;
+
+    // Filter by source
+    if (sourceFilter !== 'all') {
+      result = result.filter(a => a.source === sourceFilter);
+    }
 
     // Filter by severity
     if (severity !== 'all') {
@@ -178,20 +330,25 @@ export default function SecurityPage() {
     });
 
     return result;
-  };
+  }, [sourceFilter, severity, selectedRepo, search, sortBy]);
 
-  // Separate filtered lists for Dependabot and Code Scanning
-  const dependabotAlerts = useMemo(() =>
-    filterAndSort(allAlerts.filter(a => a.type === 'dependabot')),
-    [allAlerts, severity, selectedRepo, search, sortBy]
+  // Filtered alert lists by category
+  const dependencyAlerts = useMemo(() =>
+    filterAndSort(allAlerts.filter(a => a.type === 'dependabot' || a.type === 'trivy')),
+    [allAlerts, filterAndSort]
   );
 
-  const codeScanningAlerts = useMemo(() =>
-    filterAndSort(allAlerts.filter(a => a.type === 'code-scanning')),
-    [allAlerts, severity, selectedRepo, search, sortBy]
+  const codeAlerts = useMemo(() =>
+    filterAndSort(allAlerts.filter(a => a.type === 'code-scanning' || a.type === 'semgrep')),
+    [allAlerts, filterAndSort]
   );
 
-  // Count by severity
+  const secretAlerts = useMemo(() =>
+    filterAndSort(allAlerts.filter(a => a.type === 'secret-scanning' || a.type === 'gitleaks')),
+    [allAlerts, filterAndSort]
+  );
+
+  // Counts
   const severityCounts = useMemo(() => ({
     critical: allAlerts.filter(a => a.severity.toLowerCase() === 'critical').length,
     high: allAlerts.filter(a => a.severity.toLowerCase() === 'high').length,
@@ -199,12 +356,21 @@ export default function SecurityPage() {
     low: allAlerts.filter(a => a.severity.toLowerCase() === 'low').length,
   }), [allAlerts]);
 
-  // Count by type
-  const typeCounts = useMemo(() => ({
-    dependabot: allAlerts.filter(a => a.type === 'dependabot').length,
-    codeScanning: allAlerts.filter(a => a.type === 'code-scanning').length,
-    secretScanning: allAlerts.filter(a => a.type === 'secret-scanning').length,
+  const sourceCounts = useMemo(() => ({
+    github: allAlerts.filter(a => a.source === 'github').length,
+    local: allAlerts.filter(a => a.source === 'local').length,
   }), [allAlerts]);
+
+  // Scan summary
+  const scanSummary = useMemo(() => {
+    const completedScans = Object.values(scanJobs).filter(j => j.status === 'completed');
+    return {
+      total: completedScans.length,
+      trivy: completedScans.reduce((sum, j) => sum + (j.results?.trivy?.vulnerabilities.length || 0), 0),
+      gitleaks: completedScans.reduce((sum, j) => sum + (j.results?.gitleaks?.secrets.length || 0), 0),
+      semgrep: completedScans.reduce((sum, j) => sum + (j.results?.semgrep?.findings.length || 0), 0),
+    };
+  }, [scanJobs]);
 
   if (error) {
     return (
@@ -243,9 +409,6 @@ export default function SecurityPage() {
           </svg>
           <h2 className="text-xl font-semibold mb-2">GitHub Token Required</h2>
           <p className="text-[var(--text-muted)] mb-4">Security alerts require authentication</p>
-          <p className="text-sm text-[var(--text-muted)]">
-            Add <code className="bg-[var(--card-border)] px-1 rounded">GITHUB_TOKEN</code> to <code className="bg-[var(--card-border)] px-1 rounded">.env.local</code>
-          </p>
         </div>
       </div>
     );
@@ -253,9 +416,10 @@ export default function SecurityPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="text-2xl font-bold">Security Alerts</h1>
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex items-center gap-3 text-sm flex-wrap">
           {severityCounts.critical > 0 && (
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-[#f85149]" />
@@ -283,6 +447,49 @@ export default function SecurityPage() {
         </div>
       </div>
 
+      {/* Scan Controls */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold flex items-center gap-2">
+            <svg className="w-5 h-5 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Local Security Scanning
+          </h2>
+          {scanSummary.total > 0 && (
+            <div className="text-xs text-[var(--text-muted)]">
+              {scanSummary.total} scan{scanSummary.total !== 1 ? 's' : ''} completed
+              {scanSummary.trivy + scanSummary.gitleaks + scanSummary.semgrep > 0 && (
+                <span className="ml-2">
+                  ({scanSummary.trivy} deps, {scanSummary.gitleaks} secrets, {scanSummary.semgrep} code)
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <p className="text-sm text-[var(--text-muted)] mb-4">
+          Run Trivy, Gitleaks, and Semgrep scans on your repositories
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {repoNames.slice(0, 10).map(repoName => (
+            <div key={repoName} className="flex items-center gap-2">
+              <span className="text-sm text-[var(--text-muted)]">{repoName}</span>
+              <ScanButton
+                repoName={repoName}
+                scanning={scanning[repoName] || false}
+                progress={scanJobs[repoName]}
+                onScan={handleScan}
+              />
+            </div>
+          ))}
+        </div>
+        {repoNames.length > 10 && (
+          <p className="text-xs text-[var(--text-muted)] mt-2">
+            Showing first 10 repositories
+          </p>
+        )}
+      </div>
+
       {/* Filters */}
       <div className="card">
         <div className="flex flex-wrap gap-4">
@@ -301,6 +508,17 @@ export default function SecurityPage() {
               />
             </div>
           </div>
+
+          {/* Source Filter */}
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value as Source)}
+            className="px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
+          >
+            <option value="all">All Sources ({sourceCounts.github + sourceCounts.local})</option>
+            <option value="github">GitHub ({sourceCounts.github})</option>
+            <option value="local">Local Scans ({sourceCounts.local})</option>
+          </select>
 
           {/* Severity Filter */}
           <select
@@ -340,71 +558,29 @@ export default function SecurityPage() {
         </div>
       </div>
 
-      {/* Two Column Layout for Dependabot and Code Scanning */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Dependabot Alerts Column */}
+      {/* Three Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Dependency Alerts Column */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <svg className="w-5 h-5 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
-              </svg>
-              Dependabot
-              <span className="badge bg-[var(--accent-orange)] text-white">{dependabotAlerts.length}</span>
-            </h2>
-          </div>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <svg className="w-5 h-5 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+            </svg>
+            Dependencies
+            <span className="badge bg-[var(--accent-orange)] text-white">{dependencyAlerts.length}</span>
+          </h2>
 
-          {dependabotAlerts.length === 0 ? (
+          {dependencyAlerts.length === 0 ? (
             <div className="card text-center py-8">
               <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
                 <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
               </svg>
-              <p className="text-sm text-[var(--accent-green)] font-medium">No Dependabot alerts</p>
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                {search || severity !== 'all' || selectedRepo !== 'all'
-                  ? 'Try adjusting your filters'
-                  : 'All dependencies are secure'}
-              </p>
+              <p className="text-sm text-[var(--accent-green)] font-medium">No dependency alerts</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {dependabotAlerts.map((alert) => (
-                <a
-                  key={alert.id}
-                  href={alert.htmlUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card !p-3 flex items-start gap-3 hover:border-[var(--accent)] transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-2">
-                      <span className={`badge shrink-0 text-xs ${getSeverityColor(alert.severity)}`}>
-                        {alert.severity}
-                      </span>
-                      <h3 className="font-medium text-sm leading-tight">{alert.title}</h3>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-muted)] flex-wrap">
-                      <span className="text-[var(--accent)]">{alert.repoName}</span>
-                      {alert.package && (
-                        <>
-                          <span>·</span>
-                          <span>{alert.package}</span>
-                        </>
-                      )}
-                      {alert.cveId && (
-                        <>
-                          <span>·</span>
-                          <span>{alert.cveId}</span>
-                        </>
-                      )}
-                      <span>·</span>
-                      <span>{timeAgo(alert.createdAt)}</span>
-                    </div>
-                  </div>
-                  <svg className="w-4 h-4 text-[var(--text-muted)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              {dependencyAlerts.map((alert) => (
+                <AlertCard key={alert.id} alert={alert} />
               ))}
             </div>
           )}
@@ -412,72 +588,124 @@ export default function SecurityPage() {
 
         {/* Code Scanning Alerts Column */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <svg className="w-5 h-5 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
-              </svg>
-              Code Scanning
-              <span className="badge bg-[var(--accent-purple)] text-white">{codeScanningAlerts.length}</span>
-            </h2>
-          </div>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <svg className="w-5 h-5 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
+            </svg>
+            Code Analysis
+            <span className="badge bg-[var(--accent-purple)] text-white">{codeAlerts.length}</span>
+          </h2>
 
-          {codeScanningAlerts.length === 0 ? (
+          {codeAlerts.length === 0 ? (
             <div className="card text-center py-8">
               <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
                 <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
               </svg>
-              <p className="text-sm text-[var(--accent-green)] font-medium">No code scanning alerts</p>
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                {search || severity !== 'all' || selectedRepo !== 'all'
-                  ? 'Try adjusting your filters'
-                  : 'No code issues detected'}
-              </p>
+              <p className="text-sm text-[var(--accent-green)] font-medium">No code issues</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {codeScanningAlerts.map((alert) => (
-                <a
-                  key={alert.id}
-                  href={alert.htmlUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card !p-3 flex items-start gap-3 hover:border-[var(--accent)] transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-2">
-                      <span className={`badge shrink-0 text-xs ${getSeverityColor(alert.severity)}`}>
-                        {alert.severity}
-                      </span>
-                      <h3 className="font-medium text-sm leading-tight">{alert.title}</h3>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-muted)] flex-wrap">
-                      <span className="text-[var(--accent)]">{alert.repoName}</span>
-                      {alert.path && (
-                        <>
-                          <span>·</span>
-                          <span className="truncate max-w-[200px]">{alert.path}</span>
-                        </>
-                      )}
-                      {alert.tool && (
-                        <>
-                          <span>·</span>
-                          <span>{alert.tool}</span>
-                        </>
-                      )}
-                      <span>·</span>
-                      <span>{timeAgo(alert.createdAt)}</span>
-                    </div>
-                  </div>
-                  <svg className="w-4 h-4 text-[var(--text-muted)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              {codeAlerts.map((alert) => (
+                <AlertCard key={alert.id} alert={alert} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Secret Scanning Alerts Column */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <svg className="w-5 h-5 text-[var(--accent-red)]" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
+            </svg>
+            Secrets
+            <span className="badge bg-[var(--accent-red)] text-white">{secretAlerts.length}</span>
+          </h2>
+
+          {secretAlerts.length === 0 ? (
+            <div className="card text-center py-8">
+              <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+              </svg>
+              <p className="text-sm text-[var(--accent-green)] font-medium">No secrets detected</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              {secretAlerts.map((alert) => (
+                <AlertCard key={alert.id} alert={alert} />
               ))}
             </div>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+// Alert Card Component
+function AlertCard({ alert }: { alert: UnifiedAlert }) {
+  const isLocal = alert.source === 'local';
+  const CardWrapper = alert.htmlUrl ? 'a' : 'div';
+  const cardProps = alert.htmlUrl ? {
+    href: alert.htmlUrl,
+    target: '_blank',
+    rel: 'noopener noreferrer',
+  } : {};
+
+  return (
+    <CardWrapper
+      {...cardProps}
+      className="card !p-3 flex items-start gap-3 hover:border-[var(--accent)] transition-colors block"
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start gap-2 flex-wrap">
+          <span className={`badge shrink-0 text-xs ${getSeverityColor(alert.severity)}`}>
+            {alert.severity}
+          </span>
+          {isLocal && (
+            <span className="badge shrink-0 text-xs bg-[var(--accent)] text-white">
+              {alert.type}
+            </span>
+          )}
+          <h3 className="font-medium text-sm leading-tight break-words">{alert.title}</h3>
+        </div>
+        <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-muted)] flex-wrap">
+          <span className="text-[var(--accent)]">{alert.repoName}</span>
+          {alert.package && (
+            <>
+              <span>·</span>
+              <span>{alert.package}</span>
+            </>
+          )}
+          {alert.path && (
+            <>
+              <span>·</span>
+              <span className="truncate max-w-[150px]">
+                {alert.path}{alert.line ? `:${alert.line}` : ''}
+              </span>
+            </>
+          )}
+          {alert.cveId && (
+            <>
+              <span>·</span>
+              <span>{alert.cveId}</span>
+            </>
+          )}
+          {alert.tool && (
+            <>
+              <span>·</span>
+              <span>{alert.tool}</span>
+            </>
+          )}
+          <span>·</span>
+          <span>{timeAgo(alert.createdAt)}</span>
+        </div>
+      </div>
+      {alert.htmlUrl && (
+        <svg className="w-4 h-4 text-[var(--text-muted)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      )}
+    </CardWrapper>
   );
 }
