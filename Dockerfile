@@ -34,14 +34,24 @@ RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/
 
 # Install Gitleaks
 RUN GITLEAKS_VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/') && \
+    echo "Installing Gitleaks v${GITLEAKS_VERSION}" && \
     wget -q -O /tmp/gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" && \
     tar -xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks && \
+    chmod +x /usr/local/bin/gitleaks && \
     rm /tmp/gitleaks.tar.gz
 
 # Install Semgrep
 RUN python3 -m venv /opt/semgrep-venv && \
     /opt/semgrep-venv/bin/pip install --no-cache-dir semgrep && \
     ln -s /opt/semgrep-venv/bin/semgrep /usr/local/bin/semgrep
+
+# Verify all tools are installed
+RUN echo "Verifying security tools..." && \
+    trivy --version && \
+    gitleaks version && \
+    semgrep --version && \
+    git --version && \
+    echo "All security tools installed successfully!"
 
 WORKDIR /app
 
