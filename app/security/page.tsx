@@ -629,6 +629,10 @@ export default function SecurityPage() {
                     <span className="text-[var(--text-muted)]"> Deploy with Docker to enable scanning.</span>
                   </div>
                 )}
+                {/* Debug: show scan ID and timestamp */}
+                <div className="mt-2 text-xs text-[var(--text-muted)]">
+                  Scan ID: {latestCompletedScan.id} | Started: {latestCompletedScan.startedAt}
+                </div>
               </div>
               <button
                 onClick={() => setDismissedScanId(latestCompletedScan.id)}
