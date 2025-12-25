@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import useSWR, { mutate } from 'swr';
 
 interface TokenConfig {
@@ -208,12 +208,34 @@ function TokenCard({
 
 export default function SettingsPage() {
   const { data, error, isLoading } = useSWR<SettingsData>('settings', fetchSettings);
+  const [testingSlack, setTestingSlack] = useState(false);
+  const [slackTestResult, setSlackTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleUpdate = () => {
     mutate('settings');
     // Also invalidate dashboard data to reflect new tokens
     mutate('dashboard');
   };
+
+  const handleSlackTest = useCallback(async () => {
+    setTestingSlack(true);
+    setSlackTestResult(null);
+
+    try {
+      const response = await fetch('/api/slack/test', { method: 'POST' });
+      const data = await response.json();
+
+      if (response.ok) {
+        setSlackTestResult({ success: true, message: data.message || 'Test message sent!' });
+      } else {
+        setSlackTestResult({ success: false, message: data.error || 'Failed to send test message' });
+      }
+    } catch {
+      setSlackTestResult({ success: false, message: 'Failed to connect to server' });
+    } finally {
+      setTestingSlack(false);
+    }
+  }, []);
 
   if (error) {
     return (
@@ -306,6 +328,56 @@ export default function SettingsPage() {
           />
         ))}
       </div>
+
+      {/* Slack Integration */}
+      {tokens.find((t) => t.key === 'SLACK_WEBHOOK_URL')?.configured && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Integrations</h2>
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold flex items-center gap-2">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" />
+                  </svg>
+                  Slack Notifications
+                </h3>
+                <p className="text-sm text-[var(--text-muted)] mt-1">
+                  Receive alerts for deployment failures and security scan findings
+                </p>
+              </div>
+              <button
+                onClick={handleSlackTest}
+                disabled={testingSlack}
+                className="px-4 py-2 bg-[var(--accent)] text-white rounded hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+              >
+                {testingSlack ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Sending...
+                  </>
+                ) : (
+                  'Send Test Message'
+                )}
+              </button>
+            </div>
+            {slackTestResult && (
+              <div
+                className={`mt-4 p-3 rounded text-sm ${
+                  slackTestResult.success
+                    ? 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
+                    : 'bg-[var(--accent-red)]/10 text-[var(--accent-red)]'
+                }`}
+              >
+                {slackTestResult.message}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Info Box */}
       <div className="card bg-[var(--card-border)] !border-0">

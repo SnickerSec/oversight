@@ -7,6 +7,7 @@ import { ScanJob, ScanTool, ScanResults } from './types';
 import { runTrivy } from './trivy';
 import { runGitleaks } from './gitleaks';
 import { runSemgrep } from './semgrep';
+import { sendSecurityScanAlert } from '@/lib/slack';
 
 const SCAN_KEY_PREFIX = 'oversight:scan:';
 const GITHUB_USERNAME = 'SnickerSec';
@@ -126,6 +127,23 @@ export async function startScan(
       progress: 100,
       currentTool: undefined,
       results,
+    });
+
+    // Send Slack alert if there are findings
+    await sendSecurityScanAlert(repoName, {
+      trivy: results.trivy ? {
+        critical: results.trivy.vulnerabilities.filter(v => v.severity === 'CRITICAL').length,
+        high: results.trivy.vulnerabilities.filter(v => v.severity === 'HIGH').length,
+        medium: results.trivy.vulnerabilities.filter(v => v.severity === 'MEDIUM').length,
+        low: results.trivy.vulnerabilities.filter(v => v.severity === 'LOW').length,
+      } : undefined,
+      gitleaks: results.gitleaks ? {
+        total: results.gitleaks.secrets.length,
+      } : undefined,
+      semgrep: results.semgrep ? {
+        error: results.semgrep.findings.filter(f => f.severity === 'ERROR').length,
+        warning: results.semgrep.findings.filter(f => f.severity === 'WARNING').length,
+      } : undefined,
     });
 
   } catch (error) {
