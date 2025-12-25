@@ -1163,13 +1163,6 @@ async function fetchGCPData(): Promise<GCPData> {
           if (metricsResponse?.ok) {
             const metricsData = await metricsResponse.json();
 
-            // Debug: log Generative Language API response specifically
-            if (isGenerativeLanguage) {
-              console.log(`\n=== Generative Language API Metrics ===`);
-              console.log(`Service: ${serviceName}`);
-              console.log(`Response:`, JSON.stringify(metricsData, null, 2));
-            }
-
             // Sum all data points to get total request count
             let requestCount = 0;
             if (metricsData.timeSeriesData && metricsData.timeSeriesData.length > 0) {
@@ -1189,14 +1182,6 @@ async function fetchGCPData(): Promise<GCPData> {
                 errorCount: 0,
                 latencyMs: 0,
               };
-              if (isGenerativeLanguage) {
-                console.log(`Request count extracted: ${requestCount}`);
-              }
-            }
-          } else if (metricsResponse) {
-            const errorData = await metricsResponse.json().catch(() => ({}));
-            if (isGenerativeLanguage) {
-              console.error(`Metrics API error for ${serviceName} (${metricsResponse.status}):`, errorData);
             }
           }
         } catch (error) {

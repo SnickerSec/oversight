@@ -17,7 +17,6 @@ async function getSlackWebhook(): Promise<string | undefined> {
 export async function sendSlackMessage(message: SlackMessage): Promise<boolean> {
   const webhookUrl = await getSlackWebhook();
   if (!webhookUrl) {
-    console.log('No Slack webhook configured');
     return false;
   }
 
