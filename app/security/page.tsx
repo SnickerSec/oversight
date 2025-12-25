@@ -71,6 +71,7 @@ export default function SecurityPage() {
   const [selectedRepo, setSelectedRepo] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'severity' | 'date' | 'repo'>('severity');
   const [sourceFilter, setSourceFilter] = useState<Source>('all');
+  const [scanRepoSelection, setScanRepoSelection] = useState<string>('');
 
   // Scanning state
   const [scanning, setScanning] = useState<Record<string, boolean>>({});
@@ -470,24 +471,25 @@ export default function SecurityPage() {
         <p className="text-sm text-[var(--text-muted)] mb-4">
           Run Trivy, Gitleaks, and Semgrep scans on your repositories
         </p>
-        <div className="flex flex-wrap gap-2">
-          {repoNames.slice(0, 10).map(repoName => (
-            <div key={repoName} className="flex items-center gap-2">
-              <span className="text-sm text-[var(--text-muted)]">{repoName}</span>
-              <ScanButton
-                repoName={repoName}
-                scanning={scanning[repoName] || false}
-                progress={scanJobs[repoName]}
-                onScan={handleScan}
-              />
-            </div>
-          ))}
+        <div className="flex items-center gap-3">
+          <select
+            value={scanRepoSelection}
+            onChange={(e) => setScanRepoSelection(e.target.value)}
+            className="flex-1 max-w-xs px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
+          >
+            <option value="">Select a repository...</option>
+            {repoNames.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+          <ScanButton
+            repoName={scanRepoSelection}
+            scanning={scanning[scanRepoSelection] || false}
+            progress={scanJobs[scanRepoSelection]}
+            onScan={handleScan}
+            disabled={!scanRepoSelection}
+          />
         </div>
-        {repoNames.length > 10 && (
-          <p className="text-xs text-[var(--text-muted)] mt-2">
-            Showing first 10 repositories
-          </p>
-        )}
       </div>
 
       {/* Filters */}
