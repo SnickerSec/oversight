@@ -38,9 +38,11 @@ async function fetchData(): Promise<DashboardData> {
 
 function RailwayLogo({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 12" fill="currentColor">
-      <path d="M0.5 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0z"/>
-    </svg>
+    <img
+      src="/railway-logo.jpg"
+      alt="Railway"
+      className={`${className} invert`}
+    />
   );
 }
 
