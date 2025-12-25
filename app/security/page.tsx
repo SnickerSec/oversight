@@ -415,6 +415,17 @@ export default function SecurityPage() {
     };
   }, [scanJobs]);
 
+  // Get the most recently completed scan for display
+  const latestCompletedScan = useMemo(() => {
+    const completed = Object.values(scanJobs)
+      .filter(j => j.status === 'completed' && j.completedAt)
+      .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime());
+    return completed[0] || null;
+  }, [scanJobs]);
+
+  // Track dismissed scan summaries
+  const [dismissedScanId, setDismissedScanId] = useState<string | null>(null);
+
   if (error) {
     return (
       <div className="space-y-6">
@@ -532,6 +543,92 @@ export default function SecurityPage() {
             disabled={!scanRepoSelection}
           />
         </div>
+
+        {/* Latest Scan Result Summary */}
+        {latestCompletedScan && latestCompletedScan.id !== dismissedScanId && (
+          <div className="mt-4 pt-4 border-t border-[var(--card-border)]">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-4 h-4 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                  </svg>
+                  <span className="font-medium text-sm">
+                    Scan completed: <span className="text-[var(--accent)]">{latestCompletedScan.repoName}</span>
+                  </span>
+                  <span className="text-xs text-[var(--text-muted)]">
+                    {latestCompletedScan.completedAt && timeAgo(latestCompletedScan.completedAt)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-3 text-sm">
+                  {/* Trivy Results */}
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--background)] rounded-lg">
+                    <svg className="w-4 h-4 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+                    </svg>
+                    <span className="text-[var(--text-muted)]">Trivy:</span>
+                    {(() => {
+                      const vulns = latestCompletedScan.results?.trivy?.vulnerabilities || [];
+                      const critical = vulns.filter(v => v.severity === 'CRITICAL').length;
+                      const high = vulns.filter(v => v.severity === 'HIGH').length;
+                      const medium = vulns.filter(v => v.severity === 'MEDIUM').length;
+                      const low = vulns.filter(v => v.severity === 'LOW').length;
+                      if (vulns.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
+                      return (
+                        <span className="flex gap-1.5">
+                          {critical > 0 && <span className="text-[#f85149]">{critical}C</span>}
+                          {high > 0 && <span className="text-[#db6d28]">{high}H</span>}
+                          {medium > 0 && <span className="text-[#d29922]">{medium}M</span>}
+                          {low > 0 && <span className="text-[#8b949e]">{low}L</span>}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  {/* Gitleaks Results */}
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--background)] rounded-lg">
+                    <svg className="w-4 h-4 text-[var(--accent-red)]" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
+                    </svg>
+                    <span className="text-[var(--text-muted)]">Secrets:</span>
+                    {(() => {
+                      const secrets = latestCompletedScan.results?.gitleaks?.secrets || [];
+                      if (secrets.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
+                      return <span className="text-[#f85149]">{secrets.length} found</span>;
+                    })()}
+                  </div>
+                  {/* Semgrep Results */}
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--background)] rounded-lg">
+                    <svg className="w-4 h-4 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
+                    </svg>
+                    <span className="text-[var(--text-muted)]">Code:</span>
+                    {(() => {
+                      const findings = latestCompletedScan.results?.semgrep?.findings || [];
+                      const errors = findings.filter(f => f.severity === 'ERROR').length;
+                      const warnings = findings.filter(f => f.severity === 'WARNING').length;
+                      if (findings.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
+                      return (
+                        <span className="flex gap-1.5">
+                          {errors > 0 && <span className="text-[#f85149]">{errors}E</span>}
+                          {warnings > 0 && <span className="text-[#d29922]">{warnings}W</span>}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setDismissedScanId(latestCompletedScan.id)}
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text)] rounded"
+                title="Dismiss"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
