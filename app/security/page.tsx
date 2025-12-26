@@ -610,13 +610,20 @@ export default function SecurityPage() {
                       const error = latestCompletedScan.results?.toolErrors?.semgrep;
                       if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
                       const findings = latestCompletedScan.results?.semgrep?.findings || [];
-                      const errors = findings.filter(f => f.severity === 'ERROR').length;
-                      const warnings = findings.filter(f => f.severity === 'WARNING').length;
                       if (findings.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
+                      const critical = findings.filter(f => f.severity === 'critical').length;
+                      const high = findings.filter(f => f.severity === 'high').length;
+                      const medium = findings.filter(f => f.severity === 'medium').length;
+                      const low = findings.filter(f => f.severity === 'low').length;
                       return (
                         <span className="flex gap-1.5">
-                          {errors > 0 && <span className="text-[#f85149]">{errors}E</span>}
-                          {warnings > 0 && <span className="text-[#d29922]">{warnings}W</span>}
+                          {critical > 0 && <span className="text-[#f85149]">{critical}C</span>}
+                          {high > 0 && <span className="text-[#db6d28]">{high}H</span>}
+                          {medium > 0 && <span className="text-[#d29922]">{medium}M</span>}
+                          {low > 0 && <span className="text-[#8b949e]">{low}L</span>}
+                          {critical === 0 && high === 0 && medium === 0 && low === 0 && (
+                            <span className="text-[var(--text-muted)]">{findings.length} found</span>
+                          )}
                         </span>
                       );
                     })()}
