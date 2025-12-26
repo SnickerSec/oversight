@@ -1,8 +1,14 @@
 import { spawn } from 'child_process';
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
 import { SemgrepResult, SemgrepFinding } from './types';
 import { normalizeSeverity } from '@/lib/utils';
 
 export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
+  // Use a temp file for output since stdout can have issues in containers
+  const reportFile = path.join(os.tmpdir(), `semgrep-${Date.now()}.json`);
+
   return new Promise((resolve, reject) => {
     let hasError = false;
 
@@ -10,7 +16,7 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
       'scan',
       '--config', 'auto',  // Use recommended rules
       '--json',
-      '--quiet',  // Suppress human-readable output, only emit JSON
+      '--output', reportFile,  // Write JSON to file instead of stdout
       repoDir
     ], {
       timeout: 600000, // 10 minute timeout (Semgrep can be slow)
@@ -20,12 +26,7 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
       },
     });
 
-    let stdout = '';
     let stderr = '';
-
-    semgrep.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
 
     semgrep.stderr.on('data', (data) => {
       stderr += data.toString();
@@ -33,6 +34,8 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
 
     semgrep.on('error', (error) => {
       hasError = true;
+      // Cleanup temp file
+      fs.unlink(reportFile).catch(() => {});
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         reject(new Error('Semgrep is not installed. Install with: pip install semgrep'));
       } else {
@@ -40,23 +43,31 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
       }
     });
 
-    semgrep.on('close', (code) => {
+    semgrep.on('close', async (code) => {
       // Don't process if we already rejected due to spawn error
       if (hasError) return;
 
-      const debug = {
-        rawOutputLength: stdout.length,
-        rawOutputPreview: stdout.substring(0, 500),
+      const debug: SemgrepResult['debug'] = {
+        stderrLength: stderr.length,
+        stderrPreview: stderr.substring(0, 500),
+        exitCode: code,
       };
 
       try {
-        // Try to extract JSON from output (in case there's mixed content)
-        let jsonStr = stdout;
-        const jsonStart = stdout.indexOf('{');
-        if (jsonStart > 0) {
-          jsonStr = stdout.slice(jsonStart);
+        // Read the report file
+        let reportContent = '{"results":[]}';
+        try {
+          reportContent = await fs.readFile(reportFile, 'utf-8');
+          debug.rawOutputLength = reportContent.length;
+          debug.rawOutputPreview = reportContent.substring(0, 500);
+        } catch (e) {
+          debug.parseError = `Failed to read report file: ${e}`;
+        } finally {
+          // Cleanup temp file
+          fs.unlink(reportFile).catch(() => {});
         }
-        const output = JSON.parse(jsonStr);
+
+        const output = JSON.parse(reportContent);
         const findings: SemgrepFinding[] = [];
         const summary = {
           error: 0,
@@ -99,15 +110,8 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
         resolve({ findings, summary, debug });
 
       } catch (error) {
-        // If no JSON output, return empty results with debug info
-        if (!stdout.trim()) {
-          resolve({
-            findings: [],
-            summary: { error: 0, warning: 0, info: 0, byCategory: {} },
-            debug: { ...debug, parseError: 'Empty stdout' },
-          });
-          return;
-        }
+        // Cleanup temp file
+        fs.unlink(reportFile).catch(() => {});
         // Return empty results with error info instead of rejecting
         resolve({
           findings: [],

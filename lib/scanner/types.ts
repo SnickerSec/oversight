@@ -94,6 +94,9 @@ export interface SemgrepResult {
   debug?: {
     rawOutputLength?: number;
     rawOutputPreview?: string;
+    stderrLength?: number;
+    stderrPreview?: string;
+    exitCode?: number | null;
     parseError?: string;
   };
 }
