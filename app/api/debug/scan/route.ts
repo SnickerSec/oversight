@@ -29,34 +29,27 @@ function dangerous(x: string) { return eval(x); }
 `
       );
 
-      // Test Gitleaks
+      // Test Gitleaks (use temp file since /dev/stdout doesn't work in containers)
+      const gitleaksReport = path.join(tmpDir, 'gitleaks-report.json');
       try {
-        const gitleaksOutput = execSync(
-          `gitleaks detect --source "${tmpDir}" --no-git --report-format json --report-path /dev/stdout 2>&1`,
+        execSync(
+          `gitleaks detect --source "${tmpDir}" --no-git --report-format json --report-path "${gitleaksReport}" --exit-code 0 2>&1`,
           { encoding: 'utf-8', timeout: 30000 }
         );
+        const reportContent = await fs.readFile(gitleaksReport, 'utf-8').catch(() => '[]');
+        const parsed = JSON.parse(reportContent || '[]');
         results.gitleaks = {
           success: true,
-          output: gitleaksOutput,
-          parsed: JSON.parse(gitleaksOutput || '[]'),
+          secretsFound: parsed.length,
+          parsed,
         };
       } catch (e: any) {
-        // Gitleaks returns exit code 1 when secrets found
-        const output = e.stdout || e.message;
         results.gitleaks = {
           success: false,
           exitCode: e.status,
-          stdout: e.stdout,
-          stderr: e.stderr,
-          output,
+          stdout: e.stdout?.substring(0, 500),
+          stderr: e.stderr?.substring(0, 500),
         };
-        // Try to parse output even on error (exit code 1 = secrets found)
-        try {
-          if (e.stdout) {
-            results.gitleaks.parsed = JSON.parse(e.stdout);
-            results.gitleaks.secretsFound = results.gitleaks.parsed.length;
-          }
-        } catch {}
       }
 
       // Test Semgrep

@@ -1,7 +1,13 @@
 import { spawn } from 'child_process';
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
 import { GitleaksResult, GitleaksSecret } from './types';
 
 export async function runGitleaks(repoDir: string): Promise<GitleaksResult> {
+  // Use a temp file for output since /dev/stdout doesn't work in some container environments
+  const reportFile = path.join(os.tmpdir(), `gitleaks-${Date.now()}.json`);
+
   return new Promise((resolve, reject) => {
     let hasError = false;
 
@@ -9,18 +15,14 @@ export async function runGitleaks(repoDir: string): Promise<GitleaksResult> {
       'detect',
       '--source', repoDir,
       '--report-format', 'json',
-      '--report-path', '/dev/stdout',
+      '--report-path', reportFile,
       '--no-git',  // Scan files only, not git history
+      '--exit-code', '0',  // Don't use exit code 1 for findings, we'll check the report
     ], {
       timeout: 300000, // 5 minute timeout
     });
 
-    let stdout = '';
     let stderr = '';
-
-    gitleaks.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
 
     gitleaks.stderr.on('data', (data) => {
       stderr += data.toString();
@@ -28,6 +30,8 @@ export async function runGitleaks(repoDir: string): Promise<GitleaksResult> {
 
     gitleaks.on('error', (error) => {
       hasError = true;
+      // Cleanup temp file
+      fs.unlink(reportFile).catch(() => {});
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         reject(new Error('Gitleaks is not installed. Install with: brew install gitleaks'));
       } else {
@@ -35,13 +39,23 @@ export async function runGitleaks(repoDir: string): Promise<GitleaksResult> {
       }
     });
 
-    gitleaks.on('close', (code) => {
+    gitleaks.on('close', async (code) => {
       // Don't process if we already rejected due to spawn error
       if (hasError) return;
 
       try {
-        // Gitleaks returns exit code 1 if secrets found, 0 if clean
-        const findings = stdout.trim() ? JSON.parse(stdout) : [];
+        // Read the report file
+        let reportContent = '[]';
+        try {
+          reportContent = await fs.readFile(reportFile, 'utf-8');
+        } catch (e) {
+          // Report file might not exist if no findings
+        } finally {
+          // Cleanup temp file
+          fs.unlink(reportFile).catch(() => {});
+        }
+
+        const findings = reportContent.trim() ? JSON.parse(reportContent) : [];
         const secrets: GitleaksSecret[] = [];
         const byRule: Record<string, number> = {};
 
@@ -76,14 +90,8 @@ export async function runGitleaks(repoDir: string): Promise<GitleaksResult> {
         });
 
       } catch (error) {
-        // If parsing fails with empty stdout, return empty results
-        if (!stdout.trim()) {
-          resolve({
-            secrets: [],
-            summary: { total: 0, byRule: {} },
-          });
-          return;
-        }
+        // Cleanup temp file
+        fs.unlink(reportFile).catch(() => {});
         reject(new Error(`Failed to parse Gitleaks output: ${error}`));
       }
     });
