@@ -53,11 +53,13 @@ function dangerous(x: string) { return eval(x); }
       }
 
       // Test Semgrep
+      const semgrepReport = path.join(tmpDir, 'semgrep-report.json');
       try {
-        const semgrepOutput = execSync(
-          `semgrep scan --config auto --json --quiet "${tmpDir}" 2>&1`,
+        execSync(
+          `semgrep scan --config p/default --json --output "${semgrepReport}" "${tmpDir}" 2>&1`,
           { encoding: 'utf-8', timeout: 60000, env: { ...process.env, SEMGREP_SEND_METRICS: 'off' } }
         );
+        const semgrepOutput = await fs.readFile(semgrepReport, 'utf-8').catch(() => '{"results":[]}');
         // Extract JSON from output (in case there's mixed content)
         let jsonStr = semgrepOutput;
         const jsonStart = semgrepOutput.indexOf('{');

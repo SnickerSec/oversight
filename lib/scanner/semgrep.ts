@@ -14,7 +14,8 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
 
     const semgrep = spawn('semgrep', [
       'scan',
-      '--config', 'auto',  // Use recommended rules
+      '--config', 'p/default',  // Use default ruleset (doesn't require metrics)
+      '--config', 'p/security-audit',  // Add security-focused rules
       '--json',
       '--output', reportFile,  // Write JSON to file instead of stdout
       repoDir
