@@ -10,6 +10,7 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
       'scan',
       '--config', 'auto',  // Use recommended rules
       '--json',
+      '--quiet',  // Suppress human-readable output, only emit JSON
       repoDir
     ], {
       timeout: 600000, // 10 minute timeout (Semgrep can be slow)
@@ -44,7 +45,13 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
       if (hasError) return;
 
       try {
-        const output = JSON.parse(stdout);
+        // Try to extract JSON from output (in case there's mixed content)
+        let jsonStr = stdout;
+        const jsonStart = stdout.indexOf('{');
+        if (jsonStart > 0) {
+          jsonStr = stdout.slice(jsonStart);
+        }
+        const output = JSON.parse(jsonStr);
         const findings: SemgrepFinding[] = [];
         const summary = {
           error: 0,

@@ -55,17 +55,21 @@ function dangerous(x: string) { return eval(x); }
       // Test Semgrep
       try {
         const semgrepOutput = execSync(
-          `semgrep scan --config auto --json "${tmpDir}" 2>&1`,
-          { encoding: 'utf-8', timeout: 60000 }
+          `semgrep scan --config auto --json --quiet "${tmpDir}" 2>&1`,
+          { encoding: 'utf-8', timeout: 60000, env: { ...process.env, SEMGREP_SEND_METRICS: 'off' } }
         );
+        // Extract JSON from output (in case there's mixed content)
+        let jsonStr = semgrepOutput;
+        const jsonStart = semgrepOutput.indexOf('{');
+        if (jsonStart > 0) {
+          jsonStr = semgrepOutput.slice(jsonStart);
+        }
+        const parsed = JSON.parse(jsonStr);
         results.semgrep = {
           success: true,
-          output: semgrepOutput.substring(0, 2000),
+          findingsCount: parsed.results?.length || 0,
+          findings: parsed.results?.slice(0, 5), // First 5 findings for debug
         };
-        try {
-          const parsed = JSON.parse(semgrepOutput);
-          results.semgrep.findingsCount = parsed.results?.length || 0;
-        } catch {}
       } catch (e: any) {
         results.semgrep = {
           success: false,
