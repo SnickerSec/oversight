@@ -80,12 +80,17 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
         for (const result of output.results || []) {
           const severity = normalizeSeverity(result.extra?.severity);
           const category = result.extra?.metadata?.category || 'other';
+          // Strip temp directory prefix from path to show clean relative paths
+          let cleanPath = result.path || '';
+          if (cleanPath.startsWith(repoDir)) {
+            cleanPath = cleanPath.slice(repoDir.length).replace(/^\//, '');
+          }
 
           findings.push({
             ruleId: result.check_id,
             message: result.extra?.message || '',
             severity,
-            path: result.path,
+            path: cleanPath,
             startLine: result.start?.line,
             endLine: result.end?.line,
             startCol: result.start?.col,

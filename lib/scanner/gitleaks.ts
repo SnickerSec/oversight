@@ -66,10 +66,16 @@ export async function runGitleaks(repoDir: string): Promise<GitleaksResult> {
             ? `${secret.slice(0, 4)}...${secret.slice(-4)}`
             : '***redacted***';
 
+          // Strip temp directory prefix from path to show clean relative paths
+          let cleanFile = finding.File || '';
+          if (cleanFile.startsWith(repoDir)) {
+            cleanFile = cleanFile.slice(repoDir.length).replace(/^\//, '');
+          }
+
           secrets.push({
             ruleId: finding.RuleID,
             description: finding.Description,
-            file: finding.File,
+            file: cleanFile,
             startLine: finding.StartLine,
             endLine: finding.EndLine,
             commit: finding.Commit,
