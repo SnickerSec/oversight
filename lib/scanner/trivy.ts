@@ -4,6 +4,8 @@ import { normalizeSeverity } from '@/lib/utils';
 
 export async function runTrivy(repoDir: string): Promise<TrivyResult> {
   return new Promise((resolve, reject) => {
+    let hasError = false;
+
     const trivy = spawn('trivy', [
       'fs',
       '--format', 'json',
@@ -25,7 +27,20 @@ export async function runTrivy(repoDir: string): Promise<TrivyResult> {
       stderr += data.toString();
     });
 
+    trivy.on('error', (error) => {
+      hasError = true;
+      // Check if trivy is installed
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        reject(new Error('Trivy is not installed. Install with: brew install trivy'));
+      } else {
+        reject(error);
+      }
+    });
+
     trivy.on('close', (code) => {
+      // Don't process if we already rejected due to spawn error
+      if (hasError) return;
+
       try {
         // Trivy returns 0 even with findings
         const output = JSON.parse(stdout);
@@ -71,15 +86,6 @@ export async function runTrivy(repoDir: string): Promise<TrivyResult> {
           return;
         }
         reject(new Error(`Failed to parse Trivy output: ${error}`));
-      }
-    });
-
-    trivy.on('error', (error) => {
-      // Check if trivy is installed
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        reject(new Error('Trivy is not installed. Install with: brew install trivy'));
-      } else {
-        reject(error);
       }
     });
   });

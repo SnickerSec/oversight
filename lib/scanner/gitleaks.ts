@@ -3,6 +3,8 @@ import { GitleaksResult, GitleaksSecret } from './types';
 
 export async function runGitleaks(repoDir: string): Promise<GitleaksResult> {
   return new Promise((resolve, reject) => {
+    let hasError = false;
+
     const gitleaks = spawn('gitleaks', [
       'detect',
       '--source', repoDir,
@@ -24,7 +26,19 @@ export async function runGitleaks(repoDir: string): Promise<GitleaksResult> {
       stderr += data.toString();
     });
 
+    gitleaks.on('error', (error) => {
+      hasError = true;
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        reject(new Error('Gitleaks is not installed. Install with: brew install gitleaks'));
+      } else {
+        reject(error);
+      }
+    });
+
     gitleaks.on('close', (code) => {
+      // Don't process if we already rejected due to spawn error
+      if (hasError) return;
+
       try {
         // Gitleaks returns exit code 1 if secrets found, 0 if clean
         const findings = stdout.trim() ? JSON.parse(stdout) : [];
@@ -71,14 +85,6 @@ export async function runGitleaks(repoDir: string): Promise<GitleaksResult> {
           return;
         }
         reject(new Error(`Failed to parse Gitleaks output: ${error}`));
-      }
-    });
-
-    gitleaks.on('error', (error) => {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        reject(new Error('Gitleaks is not installed. Install with: brew install gitleaks'));
-      } else {
-        reject(error);
       }
     });
   });

@@ -4,6 +4,8 @@ import { normalizeSeverity } from '@/lib/utils';
 
 export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
   return new Promise((resolve, reject) => {
+    let hasError = false;
+
     const semgrep = spawn('semgrep', [
       'scan',
       '--config', 'auto',  // Use recommended rules
@@ -28,7 +30,19 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
       stderr += data.toString();
     });
 
+    semgrep.on('error', (error) => {
+      hasError = true;
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        reject(new Error('Semgrep is not installed. Install with: pip install semgrep'));
+      } else {
+        reject(error);
+      }
+    });
+
     semgrep.on('close', (code) => {
+      // Don't process if we already rejected due to spawn error
+      if (hasError) return;
+
       try {
         const output = JSON.parse(stdout);
         const findings: SemgrepFinding[] = [];
@@ -82,14 +96,6 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
           return;
         }
         reject(new Error(`Failed to parse Semgrep output: ${error}`));
-      }
-    });
-
-    semgrep.on('error', (error) => {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        reject(new Error('Semgrep is not installed. Install with: pip install semgrep'));
-      } else {
-        reject(error);
       }
     });
   });
