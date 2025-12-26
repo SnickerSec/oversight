@@ -91,4 +91,9 @@ export interface SemgrepResult {
     info: number;
     byCategory: Record<string, number>;
   };
+  debug?: {
+    rawOutputLength?: number;
+    rawOutputPreview?: string;
+    parseError?: string;
+  };
 }

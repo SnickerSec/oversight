@@ -44,6 +44,11 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
       // Don't process if we already rejected due to spawn error
       if (hasError) return;
 
+      const debug = {
+        rawOutputLength: stdout.length,
+        rawOutputPreview: stdout.substring(0, 500),
+      };
+
       try {
         // Try to extract JSON from output (in case there's mixed content)
         let jsonStr = stdout;
@@ -91,18 +96,24 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
           summary.byCategory[category] = (summary.byCategory[category] || 0) + 1;
         }
 
-        resolve({ findings, summary });
+        resolve({ findings, summary, debug });
 
       } catch (error) {
-        // If no JSON output, return empty results
+        // If no JSON output, return empty results with debug info
         if (!stdout.trim()) {
           resolve({
             findings: [],
             summary: { error: 0, warning: 0, info: 0, byCategory: {} },
+            debug: { ...debug, parseError: 'Empty stdout' },
           });
           return;
         }
-        reject(new Error(`Failed to parse Semgrep output: ${error}`));
+        // Return empty results with error info instead of rejecting
+        resolve({
+          findings: [],
+          summary: { error: 0, warning: 0, info: 0, byCategory: {} },
+          debug: { ...debug, parseError: String(error) },
+        });
       }
     });
   });

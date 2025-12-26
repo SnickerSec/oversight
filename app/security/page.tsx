@@ -633,6 +633,17 @@ export default function SecurityPage() {
                 <div className="mt-2 text-xs text-[var(--text-muted)]">
                   Scan ID: {latestCompletedScan.id} | Started: {latestCompletedScan.startedAt}
                 </div>
+                {/* Debug: show semgrep raw output if available */}
+                {latestCompletedScan.results?.semgrep?.debug && (
+                  <details className="mt-2 text-xs">
+                    <summary className="text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)]">
+                      Semgrep Debug Info
+                    </summary>
+                    <pre className="mt-1 p-2 bg-[var(--background)] rounded text-[var(--text-muted)] overflow-x-auto max-h-32 overflow-y-auto">
+                      {JSON.stringify(latestCompletedScan.results.semgrep.debug, null, 2)}
+                    </pre>
+                  </details>
+                )}
               </div>
               <button
                 onClick={() => setDismissedScanId(latestCompletedScan.id)}
