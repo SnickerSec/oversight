@@ -82,6 +82,11 @@ export async function getStoredTokens(): Promise<StoredTokens> {
   if (!redis) return {};
 
   try {
+    // Check if encryption key is available before attempting to decrypt
+    if (!process.env.ENCRYPTION_KEY && !process.env.NEXTAUTH_SECRET) {
+      return {};
+    }
+
     const encrypted = await redis.get(SETTINGS_KEY);
     if (!encrypted) return {};
 

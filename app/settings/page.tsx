@@ -25,6 +25,12 @@ async function fetchSettings(): Promise<SettingsData> {
   return response.json();
 }
 
+interface TestResult {
+  success: boolean;
+  message: string;
+  details?: string;
+}
+
 function TokenCard({
   token,
   redisConnected,
@@ -38,6 +44,8 @@ function TokenCard({
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSave = async () => {
@@ -97,6 +105,26 @@ function TokenCard({
     }
   };
 
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+
+    try {
+      const response = await fetch('/api/settings/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: token.key }),
+      });
+
+      const data = await response.json();
+      setTestResult(data);
+    } catch {
+      setTestResult({ success: false, message: 'Failed to connect to server' });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
     <div className="card">
       <div className="flex items-start justify-between gap-4">
@@ -143,6 +171,23 @@ function TokenCard({
                 </svg>
                 <span className="text-sm">Configured</span>
               </span>
+              <button
+                onClick={handleTest}
+                disabled={testing}
+                className="px-2 py-1 text-xs border border-[var(--accent)] text-[var(--accent)] rounded hover:bg-[var(--accent)] hover:text-white disabled:opacity-50 flex items-center gap-1"
+              >
+                {testing ? (
+                  <>
+                    <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Testing...
+                  </>
+                ) : (
+                  'Test'
+                )}
+              </button>
               {token.source === 'redis' && (
                 <button
                   onClick={handleDelete}
@@ -200,6 +245,40 @@ function TokenCard({
             </button>
           </div>
           {error && <p className="mt-2 text-sm text-[var(--accent-red)]">{error}</p>}
+        </div>
+      )}
+
+      {testResult && (
+        <div
+          className={`mt-4 p-3 rounded text-sm flex items-start gap-2 ${
+            testResult.success
+              ? 'bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
+              : 'bg-[var(--accent-red)]/10 text-[var(--accent-red)]'
+          }`}
+        >
+          {testResult.success ? (
+            <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
+            </svg>
+          )}
+          <div>
+            <div className="font-medium">{testResult.message}</div>
+            {testResult.details && (
+              <div className="opacity-75 text-xs mt-0.5">{testResult.details}</div>
+            )}
+          </div>
+          <button
+            onClick={() => setTestResult(null)}
+            className="ml-auto opacity-50 hover:opacity-100"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
+            </svg>
+          </button>
         </div>
       )}
     </div>
