@@ -1,4 +1,5 @@
 import Redis from 'ioredis'
+import { trackCacheHit, trackCacheMiss } from './metrics'
 
 // Create Redis client (uses REDIS_URL from Railway or defaults to localhost)
 const getRedisClient = () => {
@@ -46,10 +47,12 @@ export async function withCache<T>(
     // Try to get from cache
     const cached = await client.get(key)
     if (cached) {
+      trackCacheHit()
       return JSON.parse(cached) as T
     }
 
-    // Fetch fresh data
+    // Cache miss - fetch fresh data
+    trackCacheMiss()
     const data = await fetcher()
 
     // Store in cache (don't await, fire and forget)

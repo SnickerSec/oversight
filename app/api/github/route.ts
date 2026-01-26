@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withCache } from '@/lib/redis';
 import { getToken } from '@/lib/settings';
+import { trackApiCall } from '@/lib/metrics';
 
 const GITHUB_USERNAME = 'SnickerSec';
 const BASE_URL = 'https://api.github.com';
@@ -213,12 +214,14 @@ function getHeaders() {
 }
 
 async function fetchGitHub<T>(endpoint: string): Promise<T> {
+  trackApiCall('github');
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     headers: getHeaders(),
     next: { revalidate: 60 },
   });
 
   if (!response.ok) {
+    trackApiCall('github', true);
     throw new Error(`GitHub API error: ${response.status}`);
   }
 
@@ -462,6 +465,7 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
 
   try {
     // First get workspaces to find team IDs
+    trackApiCall('railway');
     const workspacesResponse = await fetch(RAILWAY_API_URL, {
       method: 'POST',
       headers: {
@@ -473,7 +477,10 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
       }),
     });
 
-    if (!workspacesResponse.ok) return { repoMap, standaloneProjects };
+    if (!workspacesResponse.ok) {
+      trackApiCall('railway', true);
+      return { repoMap, standaloneProjects };
+    }
 
     const workspacesData: RailwayGraphQLResponse<RailwayWorkspacesResponse> = await workspacesResponse.json();
     const workspaces = workspacesData.data?.me?.workspaces || [];
@@ -489,6 +496,7 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
     }> = [];
 
     for (const workspace of workspaces) {
+      trackApiCall('railway');
       const teamProjectsResponse = await fetch(RAILWAY_API_URL, {
         method: 'POST',
         headers: {
@@ -603,6 +611,7 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
     await Promise.all(
       servicesToFetch.map(async (mapping) => {
         try {
+          trackApiCall('railway');
           const deployResponse = await fetch(RAILWAY_API_URL, {
             method: 'POST',
             headers: {
@@ -679,6 +688,7 @@ async function fetchRailwayData(): Promise<RailwayDataResult> {
     await Promise.all(
       standaloneServicesToFetch.map(async (project) => {
         try {
+          trackApiCall('railway');
           const deployResponse = await fetch(RAILWAY_API_URL, {
             method: 'POST',
             headers: {
@@ -819,6 +829,8 @@ async function fetchSupabaseAdvisors(projectId: string): Promise<SupabaseAdvisor
   const advisors: SupabaseAdvisors = { performance: [], security: [] };
 
   try {
+    trackApiCall('supabase');
+    trackApiCall('supabase');
     const [perfResponse, secResponse] = await Promise.all([
       fetch(`${SUPABASE_API_URL}/v1/projects/${projectId}/advisors/performance`, {
         headers: { 'Authorization': `Bearer ${tokens.SUPABASE_ACCESS_TOKEN}` },
@@ -849,6 +861,7 @@ async function fetchSupabaseData(): Promise<Map<string, SupabaseMapping>> {
   if (!tokens.SUPABASE_ACCESS_TOKEN) return projectMap;
 
   try {
+    trackApiCall('supabase');
     const response = await fetch(`${SUPABASE_API_URL}/v1/projects`, {
       headers: {
         'Authorization': `Bearer ${tokens.SUPABASE_ACCESS_TOKEN}`,
@@ -857,6 +870,7 @@ async function fetchSupabaseData(): Promise<Map<string, SupabaseMapping>> {
     });
 
     if (!response.ok) {
+      trackApiCall('supabase', true);
       console.error('Supabase API error:', response.status);
       return projectMap;
     }
@@ -1067,6 +1081,12 @@ async function fetchGCPData(): Promise<GCPData> {
   const headers = { 'Authorization': `Bearer ${accessToken}` };
 
   try {
+    // Track all GCP API calls (5 parallel calls)
+    trackApiCall('gcp');
+    trackApiCall('gcp');
+    trackApiCall('gcp');
+    trackApiCall('gcp');
+    trackApiCall('gcp');
     // Fetch all GCP resources in parallel
     const [cloudRunRes, functionsRes, computeRes, storageRes, servicesRes] = await Promise.all([
       // Cloud Run services
@@ -1143,6 +1163,7 @@ async function fetchGCPData(): Promise<GCPData> {
               | within 7d`,
           };
 
+          trackApiCall('gcp');
           const metricsResponse = await fetch(
             `https://monitoring.googleapis.com/v3/projects/${tokens.GCP_PROJECT_ID}/timeSeries:query`,
             {
@@ -1277,6 +1298,10 @@ async function fetchElevenLabsData(): Promise<ElevenLabsData> {
   const headers = { 'xi-api-key': tokens.ELEVENLABS_API_KEY };
 
   try {
+    // Track all 3 ElevenLabs API calls
+    trackApiCall('elevenlabs');
+    trackApiCall('elevenlabs');
+    trackApiCall('elevenlabs');
     const [subRes, voicesRes, historyRes] = await Promise.all([
       // Subscription info
       fetch('https://api.elevenlabs.io/v1/user/subscription', { headers })

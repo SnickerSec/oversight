@@ -152,6 +152,7 @@ export function NavLinks() {
     { href: '/supabase', label: 'Supabase' },
     { href: '/gcp', label: 'GCP' },
     { href: '/elevenlabs', label: 'ElevenLabs' },
+    { href: '/costs', label: 'Costs' },
     { href: '/settings', label: 'Settings' },
   ];
 
