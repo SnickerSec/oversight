@@ -1031,14 +1031,23 @@ interface GCPBudget {
   }>;
 }
 
+interface GCPCostBreakdown {
+  service: string;
+  cost: number;
+  currency: string;
+}
+
 interface GCPCostData {
   billingAccount: GCPBillingAccount | null;
   billingInfo: GCPBillingInfo | null;
   budgets: GCPBudget[];
   currentMonthCost: number | null;
+  last30DaysCost: number | null;
+  costBreakdown: GCPCostBreakdown[];
   currency: string;
   lastUpdated: string | null;
   error?: string;
+  bigQueryConfigured: boolean;
 }
 
 interface GCPData {
@@ -1107,8 +1116,11 @@ async function fetchGCPBillingData(accessToken: string): Promise<GCPCostData> {
     billingInfo: null,
     budgets: [],
     currentMonthCost: null,
+    last30DaysCost: null,
+    costBreakdown: [],
     currency: 'USD',
     lastUpdated: null,
+    bigQueryConfigured: false,
   };
 
   const headers = { 'Authorization': `Bearer ${accessToken}` };
@@ -1166,6 +1178,108 @@ async function fetchGCPBillingData(accessToken: string): Promise<GCPCostData> {
               thresholdRules: b.thresholdRules,
             }));
           }
+        }
+      }
+
+      // 4. Try to query BigQuery billing export for actual costs
+      const billingDataset = process.env.GCP_BILLING_DATASET;
+      const billingTable = process.env.GCP_BILLING_TABLE || 'gcp_billing_export_v1_*';
+
+      if (billingDataset) {
+        result.bigQueryConfigured = true;
+        try {
+          trackApiCall('gcp');
+
+          // Query for current month and last 30 days costs
+          const query = `
+            SELECT
+              service.description as service,
+              SUM(cost) as total_cost,
+              currency
+            FROM \`${tokens.GCP_PROJECT_ID}.${billingDataset}.${billingTable}\`
+            WHERE
+              _PARTITIONTIME >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+              AND project.id = '${tokens.GCP_PROJECT_ID}'
+            GROUP BY service.description, currency
+            ORDER BY total_cost DESC
+            LIMIT 20
+          `;
+
+          const bqRes = await fetch(
+            `https://bigquery.googleapis.com/bigquery/v2/projects/${tokens.GCP_PROJECT_ID}/queries`,
+            {
+              method: 'POST',
+              headers: {
+                ...headers,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                query,
+                useLegacySql: false,
+                timeoutMs: 30000,
+              }),
+            }
+          );
+
+          if (bqRes.ok) {
+            const bqData = await bqRes.json();
+            if (bqData.rows) {
+              let totalCost = 0;
+              const breakdown: GCPCostBreakdown[] = [];
+
+              for (const row of bqData.rows) {
+                const service = row.f[0]?.v || 'Unknown';
+                const cost = parseFloat(row.f[1]?.v || '0');
+                const currency = row.f[2]?.v || 'USD';
+
+                totalCost += cost;
+                breakdown.push({ service, cost, currency });
+                if (!result.currency) result.currency = currency;
+              }
+
+              result.last30DaysCost = Math.round(totalCost * 100) / 100;
+              result.costBreakdown = breakdown;
+            }
+          } else {
+            const bqError = await bqRes.json().catch(() => ({}));
+            console.error('BigQuery billing query error:', bqError);
+          }
+
+          // Also get current month cost
+          trackApiCall('gcp');
+          const currentMonthQuery = `
+            SELECT SUM(cost) as total_cost, currency
+            FROM \`${tokens.GCP_PROJECT_ID}.${billingDataset}.${billingTable}\`
+            WHERE
+              invoice.month = FORMAT_DATE('%Y%m', CURRENT_DATE())
+              AND project.id = '${tokens.GCP_PROJECT_ID}'
+            GROUP BY currency
+          `;
+
+          const cmRes = await fetch(
+            `https://bigquery.googleapis.com/bigquery/v2/projects/${tokens.GCP_PROJECT_ID}/queries`,
+            {
+              method: 'POST',
+              headers: {
+                ...headers,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                query: currentMonthQuery,
+                useLegacySql: false,
+                timeoutMs: 30000,
+              }),
+            }
+          );
+
+          if (cmRes.ok) {
+            const cmData = await cmRes.json();
+            if (cmData.rows && cmData.rows[0]) {
+              result.currentMonthCost = Math.round(parseFloat(cmData.rows[0].f[0]?.v || '0') * 100) / 100;
+            }
+          }
+        } catch (bqError) {
+          console.error('BigQuery billing fetch error:', bqError);
         }
       }
 

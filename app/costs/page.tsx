@@ -58,6 +58,12 @@ interface ElevenLabsData {
   } | null;
 }
 
+interface GCPCostBreakdown {
+  service: string;
+  cost: number;
+  currency: string;
+}
+
 interface GCPBillingData {
   billingAccount: {
     name: string;
@@ -79,9 +85,12 @@ interface GCPBillingData {
     };
   }>;
   currentMonthCost: number | null;
+  last30DaysCost: number | null;
+  costBreakdown: GCPCostBreakdown[];
   currency: string;
   lastUpdated: string | null;
   error?: string;
+  bigQueryConfigured: boolean;
 }
 
 interface GCPData {
@@ -229,6 +238,10 @@ export default function CostsPage() {
       currency: billing.currency || 'USD',
       error: billing.error,
       lastUpdated: billing.lastUpdated,
+      currentMonthCost: billing.currentMonthCost,
+      last30DaysCost: billing.last30DaysCost,
+      costBreakdown: billing.costBreakdown || [],
+      bigQueryConfigured: billing.bigQueryConfigured || false,
     };
   }, [dashboard]);
 
@@ -744,11 +757,37 @@ export default function CostsPage() {
             </div>
           ) : gcpBilling ? (
             <div className="space-y-4">
-              {/* Billing Account Info */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Cost Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+                  <div className="text-sm text-[var(--text-muted)]">Current Month</div>
+                  <div className="text-2xl font-bold mt-1 text-[var(--accent)]">
+                    {gcpBilling.currentMonthCost !== null
+                      ? `$${gcpBilling.currentMonthCost.toFixed(2)}`
+                      : gcpBilling.bigQueryConfigured ? '$0.00' : '-'
+                    }
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    {gcpBilling.bigQueryConfigured ? 'From billing export' : 'Configure BigQuery export'}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+                  <div className="text-sm text-[var(--text-muted)]">Last 30 Days</div>
+                  <div className="text-2xl font-bold mt-1 text-[var(--accent-purple)]">
+                    {gcpBilling.last30DaysCost !== null
+                      ? `$${gcpBilling.last30DaysCost.toFixed(2)}`
+                      : gcpBilling.bigQueryConfigured ? '$0.00' : '-'
+                    }
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    {gcpBilling.costBreakdown.length} services
+                  </div>
+                </div>
+
                 <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
                   <div className="text-sm text-[var(--text-muted)]">Billing Account</div>
-                  <div className="text-lg font-semibold mt-1">
+                  <div className="text-lg font-semibold mt-1 truncate">
                     {gcpBilling.accountName || 'Not linked'}
                   </div>
                   {gcpBilling.billingEnabled ? (
@@ -763,7 +802,7 @@ export default function CostsPage() {
                 </div>
 
                 <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
-                  <div className="text-sm text-[var(--text-muted)]">Budgets Configured</div>
+                  <div className="text-sm text-[var(--text-muted)]">Budgets</div>
                   <div className="text-lg font-semibold mt-1">
                     {gcpBilling.budgets.length}
                   </div>
@@ -771,20 +810,80 @@ export default function CostsPage() {
                     {gcpBilling.budgets.length > 0 ? 'Budget alerts active' : 'No budget alerts'}
                   </div>
                 </div>
+              </div>
 
-                <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
-                  <div className="text-sm text-[var(--text-muted)]">Last Updated</div>
-                  <div className="text-lg font-semibold mt-1">
-                    {gcpBilling.lastUpdated
-                      ? new Date(gcpBilling.lastUpdated).toLocaleTimeString()
-                      : 'N/A'
-                    }
-                  </div>
-                  <div className="text-xs text-[var(--text-muted)]">
-                    Auto-refreshes with dashboard
+              {/* Cost Breakdown by Service */}
+              {gcpBilling.costBreakdown.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-2 text-[var(--text-muted)]">Cost by Service (Last 30 Days)</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-[var(--card-border)]">
+                          <th className="text-left py-2 px-3 font-medium text-[var(--text-muted)]">Service</th>
+                          <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Cost</th>
+                          <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">% of Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gcpBilling.costBreakdown.map((item, i) => {
+                          const percentage = gcpBilling.last30DaysCost
+                            ? Math.round((item.cost / gcpBilling.last30DaysCost) * 100)
+                            : 0;
+                          return (
+                            <tr key={i} className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50">
+                              <td className="py-2 px-3">{item.service}</td>
+                              <td className="text-right py-2 px-3 tabular-nums font-medium">
+                                ${item.cost.toFixed(2)}
+                              </td>
+                              <td className="text-right py-2 px-3">
+                                <div className="flex items-center justify-end gap-2">
+                                  <div className="w-16 h-2 bg-[var(--card-border)] rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full bg-[var(--accent)]"
+                                      style={{ width: `${percentage}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[var(--text-muted)] w-8 text-right">{percentage}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {/* BigQuery Setup Instructions */}
+              {!gcpBilling.bigQueryConfigured && (
+                <div className="p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-lg">
+                  <h3 className="font-medium text-[var(--accent)] mb-2">Enable Detailed Cost Tracking</h3>
+                  <p className="text-sm text-[var(--text-muted)] mb-3">
+                    To see actual GCP costs by service, set up BigQuery billing export:
+                  </p>
+                  <ol className="text-sm text-[var(--text-muted)] list-decimal list-inside space-y-1 mb-3">
+                    <li>Go to <a href="https://console.cloud.google.com/billing/export" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">Billing → Billing export</a></li>
+                    <li>Enable "Detailed usage cost" export to BigQuery</li>
+                    <li>Note your dataset name (e.g., <code className="bg-[var(--card-border)] px-1 rounded">billing_export</code>)</li>
+                    <li>Add these environment variables to Railway:
+                      <div className="mt-1 ml-4 font-mono text-xs bg-[var(--card-border)] p-2 rounded">
+                        GCP_BILLING_DATASET=billing_export<br/>
+                        GCP_BILLING_TABLE=gcp_billing_export_v1_XXXXXX_XXXXXX_XXXXXX
+                      </div>
+                    </li>
+                  </ol>
+                  <a
+                    href="https://cloud.google.com/billing/docs/how-to/export-data-bigquery"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-[var(--accent)] hover:underline"
+                  >
+                    View setup documentation →
+                  </a>
+                </div>
+              )}
 
               {/* Budgets */}
               {gcpBilling.budgets.length > 0 && (
