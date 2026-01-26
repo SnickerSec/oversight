@@ -1004,6 +1004,43 @@ interface GCPEnabledService {
   };
 }
 
+interface GCPBillingAccount {
+  name: string;
+  displayName: string;
+  open: boolean;
+  masterBillingAccount?: string;
+}
+
+interface GCPBillingInfo {
+  billingAccountName?: string;
+  billingEnabled: boolean;
+}
+
+interface GCPBudget {
+  name: string;
+  displayName: string;
+  budgetAmount: {
+    specifiedAmount?: {
+      currencyCode: string;
+      units: string;
+    };
+  };
+  thresholdRules?: Array<{
+    thresholdPercent: number;
+    spendBasis: string;
+  }>;
+}
+
+interface GCPCostData {
+  billingAccount: GCPBillingAccount | null;
+  billingInfo: GCPBillingInfo | null;
+  budgets: GCPBudget[];
+  currentMonthCost: number | null;
+  currency: string;
+  lastUpdated: string | null;
+  error?: string;
+}
+
 interface GCPData {
   cloudRun: GCPCloudRunService[];
   functions: GCPCloudFunction[];
@@ -1011,6 +1048,7 @@ interface GCPData {
   storage: GCPStorageBucket[];
   enabledServices: GCPEnabledService[];
   projectId: string | null;
+  billing?: GCPCostData;
 }
 
 async function getGCPAccessToken(): Promise<string | null> {
@@ -1061,6 +1099,88 @@ async function getGCPAccessToken(): Promise<string | null> {
     console.error('GCP auth error:', error);
     return null;
   }
+}
+
+async function fetchGCPBillingData(accessToken: string): Promise<GCPCostData> {
+  const result: GCPCostData = {
+    billingAccount: null,
+    billingInfo: null,
+    budgets: [],
+    currentMonthCost: null,
+    currency: 'USD',
+    lastUpdated: null,
+  };
+
+  const headers = { 'Authorization': `Bearer ${accessToken}` };
+
+  try {
+    // 1. Get billing info for the project (which billing account is linked)
+    trackApiCall('gcp');
+    const billingInfoRes = await fetch(
+      `https://cloudbilling.googleapis.com/v1/projects/${tokens.GCP_PROJECT_ID}/billingInfo`,
+      { headers }
+    );
+
+    if (billingInfoRes.ok) {
+      const billingInfo = await billingInfoRes.json();
+      result.billingInfo = {
+        billingAccountName: billingInfo.billingAccountName,
+        billingEnabled: billingInfo.billingEnabled || false,
+      };
+
+      // 2. If we have a billing account, get its details
+      if (billingInfo.billingAccountName) {
+        trackApiCall('gcp');
+        const billingAccountRes = await fetch(
+          `https://cloudbilling.googleapis.com/v1/${billingInfo.billingAccountName}`,
+          { headers }
+        );
+
+        if (billingAccountRes.ok) {
+          const account = await billingAccountRes.json();
+          result.billingAccount = {
+            name: account.name,
+            displayName: account.displayName,
+            open: account.open || false,
+            masterBillingAccount: account.masterBillingAccount,
+          };
+
+          // 3. Try to get budgets for this billing account
+          trackApiCall('gcp');
+          const budgetsRes = await fetch(
+            `https://billingbudgets.googleapis.com/v1/${billingInfo.billingAccountName}/budgets`,
+            { headers }
+          );
+
+          if (budgetsRes.ok) {
+            const budgetsData = await budgetsRes.json();
+            result.budgets = (budgetsData.budgets || []).map((b: any) => ({
+              name: b.name,
+              displayName: b.displayName || 'Unnamed Budget',
+              budgetAmount: b.amount?.specifiedAmount ? {
+                specifiedAmount: {
+                  currencyCode: b.amount.specifiedAmount.currencyCode || 'USD',
+                  units: b.amount.specifiedAmount.units || '0',
+                },
+              } : { specifiedAmount: undefined },
+              thresholdRules: b.thresholdRules,
+            }));
+          }
+        }
+      }
+
+      result.lastUpdated = new Date().toISOString();
+    } else {
+      const error = await billingInfoRes.json().catch(() => ({}));
+      result.error = error.error?.message || `HTTP ${billingInfoRes.status}`;
+      console.error('GCP Billing API error:', error);
+    }
+  } catch (error) {
+    console.error('GCP billing fetch error:', error);
+    result.error = error instanceof Error ? error.message : 'Unknown error';
+  }
+
+  return result;
 }
 
 async function fetchGCPData(): Promise<GCPData> {
@@ -1220,6 +1340,9 @@ async function fetchGCPData(): Promise<GCPData> {
         return bCount - aCount;
       });
     }
+
+    // Fetch billing data
+    result.billing = await fetchGCPBillingData(accessToken);
   } catch (error) {
     console.error('GCP fetch error:', error);
   }

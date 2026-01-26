@@ -58,9 +58,42 @@ interface ElevenLabsData {
   } | null;
 }
 
+interface GCPBillingData {
+  billingAccount: {
+    name: string;
+    displayName: string;
+    open: boolean;
+  } | null;
+  billingInfo: {
+    billingAccountName?: string;
+    billingEnabled: boolean;
+  } | null;
+  budgets: Array<{
+    name: string;
+    displayName: string;
+    budgetAmount: {
+      specifiedAmount?: {
+        currencyCode: string;
+        units: string;
+      };
+    };
+  }>;
+  currentMonthCost: number | null;
+  currency: string;
+  lastUpdated: string | null;
+  error?: string;
+}
+
+interface GCPData {
+  billing?: GCPBillingData;
+  projectId: string | null;
+}
+
 interface DashboardData {
   elevenLabs: ElevenLabsData;
   hasElevenLabsToken: boolean;
+  gcp?: GCPData;
+  hasGCPToken?: boolean;
 }
 
 type DateRange = '7d' | '14d' | '30d';
@@ -112,7 +145,7 @@ const SERVICE_CONFIG: Record<string, {
     color: 'var(--accent)',
     costPerCall: 0.0001, // ~$0.10 per 1000 calls for monitoring API
     costNote: '$0.10 per 1K calls (est.)',
-    billingNote: 'Full billing via GCP Console'
+    billingNote: 'Billing API connected'
   },
   elevenlabs: {
     name: 'ElevenLabs',
@@ -184,6 +217,20 @@ export default function CostsPage() {
     if (!metrics?.daily?.length) return null;
     return metrics.daily[metrics.daily.length - 1];
   }, [metrics]);
+
+  // GCP billing data
+  const gcpBilling = useMemo(() => {
+    if (!dashboard?.gcp?.billing) return null;
+    const billing = dashboard.gcp.billing;
+    return {
+      accountName: billing.billingAccount?.displayName || null,
+      billingEnabled: billing.billingInfo?.billingEnabled || false,
+      budgets: billing.budgets || [],
+      currency: billing.currency || 'USD',
+      error: billing.error,
+      lastUpdated: billing.lastUpdated,
+    };
+  }, [dashboard]);
 
   const elevenLabsUsage = useMemo(() => {
     if (!dashboard?.elevenLabs?.subscription) return null;
@@ -667,6 +714,133 @@ export default function CostsPage() {
           </table>
         </div>
       </div>
+
+      {/* GCP Billing Details */}
+      {dashboard?.hasGCPToken && (
+        <div className="card">
+          <h2 className="text-lg font-semibold mb-2">GCP Billing</h2>
+          <p className="text-sm text-[var(--text-muted)] mb-4">
+            Actual billing data from Google Cloud Billing API
+          </p>
+
+          {gcpBilling?.error ? (
+            <div className="p-4 bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 rounded-lg">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-[var(--accent-red)] mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <div className="font-medium text-[var(--accent-red)]">Billing API Error</div>
+                  <div className="text-sm text-[var(--text-muted)] mt-1">{gcpBilling.error}</div>
+                  <div className="text-sm text-[var(--text-muted)] mt-2">
+                    To enable billing data:
+                    <ol className="list-decimal list-inside mt-1 space-y-1">
+                      <li>Enable Cloud Billing API: <code className="bg-[var(--card-border)] px-1 rounded">gcloud services enable cloudbilling.googleapis.com</code></li>
+                      <li>Grant your service account the <code className="bg-[var(--card-border)] px-1 rounded">roles/billing.viewer</code> role</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : gcpBilling ? (
+            <div className="space-y-4">
+              {/* Billing Account Info */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+                  <div className="text-sm text-[var(--text-muted)]">Billing Account</div>
+                  <div className="text-lg font-semibold mt-1">
+                    {gcpBilling.accountName || 'Not linked'}
+                  </div>
+                  {gcpBilling.billingEnabled ? (
+                    <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent-green)]/20 text-[var(--accent-green)]">
+                      Active
+                    </span>
+                  ) : (
+                    <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent-red)]/20 text-[var(--accent-red)]">
+                      Disabled
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+                  <div className="text-sm text-[var(--text-muted)]">Budgets Configured</div>
+                  <div className="text-lg font-semibold mt-1">
+                    {gcpBilling.budgets.length}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    {gcpBilling.budgets.length > 0 ? 'Budget alerts active' : 'No budget alerts'}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+                  <div className="text-sm text-[var(--text-muted)]">Last Updated</div>
+                  <div className="text-lg font-semibold mt-1">
+                    {gcpBilling.lastUpdated
+                      ? new Date(gcpBilling.lastUpdated).toLocaleTimeString()
+                      : 'N/A'
+                    }
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    Auto-refreshes with dashboard
+                  </div>
+                </div>
+              </div>
+
+              {/* Budgets */}
+              {gcpBilling.budgets.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-2 text-[var(--text-muted)]">Budgets</h3>
+                  <div className="space-y-2">
+                    {gcpBilling.budgets.map((budget, i) => (
+                      <div key={i} className="p-3 bg-[var(--background)] rounded-lg border border-[var(--card-border)] flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">{budget.displayName}</div>
+                          <div className="text-sm text-[var(--text-muted)]">
+                            {budget.budgetAmount.specifiedAmount
+                              ? `${budget.budgetAmount.specifiedAmount.currencyCode} ${parseInt(budget.budgetAmount.specifiedAmount.units).toLocaleString()}`
+                              : 'No limit set'
+                            }
+                          </div>
+                        </div>
+                        <a
+                          href={`https://console.cloud.google.com/billing/budgets?project=${dashboard?.gcp?.projectId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-[var(--accent)] hover:underline"
+                        >
+                          View in Console
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Link to full billing console */}
+              <div className="p-4 bg-[var(--card-border)]/30 rounded-lg flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Full Billing Details</div>
+                  <div className="text-sm text-[var(--text-muted)]">
+                    View detailed cost breakdown, invoices, and usage reports in GCP Console
+                  </div>
+                </div>
+                <a
+                  href={`https://console.cloud.google.com/billing?project=${dashboard?.gcp?.projectId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-[var(--accent)] text-white rounded-md hover:opacity-90 text-sm"
+                >
+                  Open GCP Billing
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-[var(--text-muted)]">
+              <div>Loading billing data...</div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Daily Breakdown */}
       <div className="card">
