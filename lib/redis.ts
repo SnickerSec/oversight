@@ -47,12 +47,12 @@ export async function withCache<T>(
     // Try to get from cache
     const cached = await client.get(key)
     if (cached) {
-      trackCacheHit()
+      trackCacheHit(key)
       return JSON.parse(cached) as T
     }
 
     // Cache miss - fetch fresh data
-    trackCacheMiss()
+    trackCacheMiss(key)
     const data = await fetcher()
 
     // Store in cache (don't await, fire and forget)

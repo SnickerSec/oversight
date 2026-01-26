@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMetricsRange } from '@/lib/metrics';
+import { getMetricsRange, getCacheDetails, CACHE_CONFIG } from '@/lib/metrics';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,9 +15,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const metrics = await getMetricsRange(days);
+    const [metrics, cacheDetails] = await Promise.all([
+      getMetricsRange(days),
+      getCacheDetails(),
+    ]);
 
-    return NextResponse.json(metrics);
+    return NextResponse.json({
+      ...metrics,
+      cacheDetails: {
+        ...cacheDetails,
+        config: CACHE_CONFIG,
+      },
+    });
   } catch (error) {
     console.error('Metrics API error:', error);
     return NextResponse.json(

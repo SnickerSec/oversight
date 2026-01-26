@@ -14,6 +14,18 @@ interface DailyMetrics {
   cache: { hits: number; misses: number };
 }
 
+interface CacheKeyInfo {
+  key: string;
+  ttl: number;
+  size: number;
+}
+
+interface CacheConfig {
+  name: string;
+  ttlSeconds: number;
+  description: string;
+}
+
 interface MetricsData {
   daily: DailyMetrics[];
   summary: {
@@ -21,6 +33,12 @@ interface MetricsData {
     totalErrors: number;
     byService: Record<string, ServiceMetrics>;
     cacheHitRate: number;
+  };
+  cacheDetails?: {
+    activeCacheKeys: CacheKeyInfo[];
+    keyStats: Record<string, { hits: number; misses: number; hitRate: number }>;
+    recommendations: string[];
+    config: Record<string, CacheConfig>;
   };
 }
 
@@ -130,6 +148,20 @@ function formatCurrency(amount: number): string {
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatTTL(seconds: number): string {
+  if (seconds <= 0) return 'Expired';
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
 }
 
 export default function CostsPage() {
@@ -689,26 +721,41 @@ export default function CostsPage() {
       {/* Cache Stats */}
       <div className="card">
         <h2 className="text-lg font-semibold mb-4">Cache Performance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+        {/* Overview Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
             <div className="text-2xl font-bold text-[var(--accent-green)]">
               {formatNumber(cacheStats.hits)}
             </div>
             <div className="text-sm text-[var(--text-muted)]">Cache Hits</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">
+              Served from cache
+            </div>
           </div>
           <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
             <div className="text-2xl font-bold text-[var(--accent-orange)]">
               {formatNumber(cacheStats.misses)}
             </div>
             <div className="text-sm text-[var(--text-muted)]">Cache Misses</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">
+              Required API fetch
+            </div>
           </div>
           <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
-            <div className="text-2xl font-bold text-[var(--accent)]">
+            <div className={`text-2xl font-bold ${
+              (metrics?.summary?.cacheHitRate || 0) >= 80
+                ? 'text-[var(--accent-green)]'
+                : (metrics?.summary?.cacheHitRate || 0) >= 50
+                  ? 'text-[var(--accent-orange)]'
+                  : 'text-[var(--accent-red)]'
+            }`}>
               {metrics?.summary?.cacheHitRate || 0}%
             </div>
             <div className="text-sm text-[var(--text-muted)]">Hit Rate</div>
             <div className="text-xs text-[var(--text-muted)] mt-1">
-              Higher is better
+              {(metrics?.summary?.cacheHitRate || 0) >= 80 ? 'Excellent' :
+               (metrics?.summary?.cacheHitRate || 0) >= 50 ? 'Good' : 'Needs improvement'}
             </div>
           </div>
           <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
@@ -717,7 +764,141 @@ export default function CostsPage() {
             </div>
             <div className="text-sm text-[var(--text-muted)]">API Calls Saved</div>
             <div className="text-xs text-[var(--text-muted)] mt-1">
-              Reduced external requests
+              ~{formatNumber(Math.round(cacheStats.savedCalls / days))}/day avg
+            </div>
+          </div>
+        </div>
+
+        {/* Cache Configuration */}
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold mb-3 text-[var(--text-muted)]">Cache Configuration</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--card-border)]">
+                  <th className="text-left py-2 px-3 font-medium text-[var(--text-muted)]">Cache Key</th>
+                  <th className="text-left py-2 px-3 font-medium text-[var(--text-muted)]">Description</th>
+                  <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">TTL</th>
+                  <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Today Hits</th>
+                  <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Today Misses</th>
+                  <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Hit Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {metrics?.cacheDetails?.config && Object.entries(metrics.cacheDetails.config).map(([key, config]) => {
+                  const stats = metrics.cacheDetails?.keyStats[key] || { hits: 0, misses: 0, hitRate: 0 };
+                  return (
+                    <tr key={key} className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50">
+                      <td className="py-2 px-3 font-mono text-xs">{key}</td>
+                      <td className="py-2 px-3">{config.description}</td>
+                      <td className="text-right py-2 px-3 tabular-nums">{config.ttlSeconds}s</td>
+                      <td className="text-right py-2 px-3 tabular-nums text-[var(--accent-green)]">{stats.hits}</td>
+                      <td className="text-right py-2 px-3 tabular-nums text-[var(--accent-orange)]">{stats.misses}</td>
+                      <td className="text-right py-2 px-3">
+                        <span className={`font-medium ${
+                          stats.hitRate >= 80 ? 'text-[var(--accent-green)]' :
+                          stats.hitRate >= 50 ? 'text-[var(--accent-orange)]' :
+                          'text-[var(--accent-red)]'
+                        }`}>
+                          {stats.hitRate}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {(!metrics?.cacheDetails?.config || Object.keys(metrics.cacheDetails.config).length === 0) && (
+                  <tr>
+                    <td colSpan={6} className="py-4 text-center text-[var(--text-muted)]">
+                      No cache configuration data available
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Active Cache Keys */}
+        {metrics?.cacheDetails?.activeCacheKeys && metrics.cacheDetails.activeCacheKeys.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold mb-3 text-[var(--text-muted)]">Active Cache Entries</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--card-border)]">
+                    <th className="text-left py-2 px-3 font-medium text-[var(--text-muted)]">Key</th>
+                    <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Size</th>
+                    <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">TTL Remaining</th>
+                    <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.cacheDetails.activeCacheKeys.map((cacheKey) => (
+                    <tr key={cacheKey.key} className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50">
+                      <td className="py-2 px-3 font-mono text-xs">{cacheKey.key}</td>
+                      <td className="text-right py-2 px-3 tabular-nums">{formatBytes(cacheKey.size)}</td>
+                      <td className="text-right py-2 px-3 tabular-nums">{formatTTL(cacheKey.ttl)}</td>
+                      <td className="text-right py-2 px-3">
+                        {cacheKey.ttl > 10 ? (
+                          <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent-green)]/20 text-[var(--accent-green)]">Active</span>
+                        ) : cacheKey.ttl > 0 ? (
+                          <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent-orange)]/20 text-[var(--accent-orange)]">Expiring</span>
+                        ) : (
+                          <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent-red)]/20 text-[var(--accent-red)]">Expired</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-2 text-xs text-[var(--text-muted)]">
+              Total cached: {formatBytes(metrics.cacheDetails.activeCacheKeys.reduce((sum, k) => sum + k.size, 0))}
+            </div>
+          </div>
+        )}
+
+        {/* Recommendations */}
+        {metrics?.cacheDetails?.recommendations && metrics.cacheDetails.recommendations.length > 0 && (
+          <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <svg className="w-4 h-4 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              Recommendations
+            </h3>
+            <ul className="space-y-2 text-sm">
+              {metrics.cacheDetails.recommendations.map((rec, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="text-[var(--accent)] mt-0.5">•</span>
+                  <span>{rec}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* How Cache Works */}
+        <div className="mt-6 p-4 bg-[var(--card-border)]/30 rounded-lg">
+          <h3 className="text-sm font-semibold mb-2">How Caching Works</h3>
+          <div className="text-sm text-[var(--text-muted)] space-y-2">
+            <p>
+              <strong>Cache Hit:</strong> Data served from Redis cache (fast, no external API call)
+            </p>
+            <p>
+              <strong>Cache Miss:</strong> Data fetched from external APIs, then stored in cache
+            </p>
+            <p>
+              <strong>TTL (Time To Live):</strong> How long data stays in cache before expiring
+            </p>
+            <div className="mt-3 pt-3 border-t border-[var(--card-border)]">
+              <strong className="text-[var(--foreground)]">Tips to improve cache performance:</strong>
+              <ul className="mt-2 space-y-1 list-disc list-inside">
+                <li>Avoid refreshing the page more often than the cache TTL ({metrics?.cacheDetails?.config?.['dashboard:data']?.ttlSeconds || 30}s)</li>
+                <li>Multiple browser tabs share the same cache</li>
+                <li>API calls are reduced when cached data is still fresh</li>
+                <li>Higher hit rate = fewer external API calls = lower costs</li>
+              </ul>
             </div>
           </div>
         </div>
