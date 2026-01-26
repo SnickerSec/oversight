@@ -354,8 +354,8 @@ export default function CostsPage() {
             <div className="text-3xl font-bold text-[var(--accent-green)]">
               {metrics?.summary?.cacheHitRate || 0}%
             </div>
-            <div className="text-sm text-[var(--text-muted)]">Cache Hit Rate</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">Saves API calls</div>
+            <div className="text-sm text-[var(--text-muted)]">Dashboard Cache</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">Reduces API calls</div>
           </div>
           {expandedCard === 'cache' && (
             <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2 text-sm">
@@ -718,9 +718,12 @@ export default function CostsPage() {
         </div>
       </div>
 
-      {/* Cache Stats */}
+      {/* Dashboard API Cache */}
       <div className="card">
-        <h2 className="text-lg font-semibold mb-4">Cache Performance</h2>
+        <h2 className="text-lg font-semibold mb-2">Dashboard API Cache</h2>
+        <p className="text-sm text-[var(--text-muted)] mb-4">
+          Reduces external API calls by caching dashboard data locally in Redis
+        </p>
 
         {/* Overview Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
