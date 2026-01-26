@@ -51,18 +51,66 @@ async function fetchDashboard(): Promise<DashboardData> {
   return response.json();
 }
 
-const SERVICE_LABELS: Record<string, { name: string; color: string }> = {
-  github: { name: 'GitHub', color: 'var(--foreground)' },
-  railway: { name: 'Railway', color: 'var(--accent-purple)' },
-  supabase: { name: 'Supabase', color: 'var(--accent-green)' },
-  gcp: { name: 'GCP', color: 'var(--accent)' },
-  elevenlabs: { name: 'ElevenLabs', color: 'var(--accent-orange)' },
+// Service configuration with costs per API call (in USD)
+// These are estimates - actual costs vary by usage tier and specific endpoints
+const SERVICE_CONFIG: Record<string, {
+  name: string;
+  color: string;
+  costPerCall: number;
+  costNote: string;
+}> = {
+  github: {
+    name: 'GitHub',
+    color: 'var(--foreground)',
+    costPerCall: 0, // Free API
+    costNote: 'Free (rate limited)'
+  },
+  railway: {
+    name: 'Railway',
+    color: 'var(--accent-purple)',
+    costPerCall: 0, // API is free, costs are compute-based
+    costNote: 'Free (compute billed separately)'
+  },
+  supabase: {
+    name: 'Supabase',
+    color: 'var(--accent-green)',
+    costPerCall: 0, // API is free within limits
+    costNote: 'Free (database billed separately)'
+  },
+  gcp: {
+    name: 'GCP',
+    color: 'var(--accent)',
+    costPerCall: 0.0001, // ~$0.10 per 1000 calls for monitoring API
+    costNote: '$0.10 per 1K calls (monitoring)'
+  },
+  elevenlabs: {
+    name: 'ElevenLabs',
+    color: 'var(--accent-orange)',
+    costPerCall: 0, // Billed by characters, not API calls
+    costNote: 'Billed by characters used'
+  },
+};
+
+// ElevenLabs pricing per 1000 characters by tier
+const ELEVENLABS_PRICING: Record<string, number> = {
+  free: 0,
+  starter: 0.30,
+  creator: 0.24,
+  pro: 0.18,
+  scale: 0.11,
+  enterprise: 0.08,
 };
 
 function formatNumber(num: number): string {
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
   if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
   return num.toString();
+}
+
+function formatCurrency(amount: number): string {
+  if (amount === 0) return '$0.00';
+  if (amount < 0.01) return '<$0.01';
+  return `$${amount.toFixed(2)}`;
 }
 
 function formatDate(dateStr: string): string {
@@ -72,6 +120,7 @@ function formatDate(dateStr: string): string {
 
 export default function CostsPage() {
   const [dateRange, setDateRange] = useState<DateRange>('7d');
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   const days = dateRange === '7d' ? 7 : dateRange === '14d' ? 14 : 30;
 
@@ -94,8 +143,53 @@ export default function CostsPage() {
     if (!dashboard?.elevenLabs?.subscription) return null;
     const { character_count, character_limit, tier } = dashboard.elevenLabs.subscription;
     const percentage = character_limit > 0 ? Math.round((character_count / character_limit) * 100) : 0;
-    return { used: character_count, limit: character_limit, percentage, tier };
+    const pricePerK = ELEVENLABS_PRICING[tier.toLowerCase()] || 0.30;
+    const estimatedCost = (character_count / 1000) * pricePerK;
+    return { used: character_count, limit: character_limit, percentage, tier, estimatedCost, pricePerK };
   }, [dashboard]);
+
+  // Calculate costs per service
+  const serviceCosts = useMemo(() => {
+    if (!metrics?.summary?.byService) return {};
+    const costs: Record<string, number> = {};
+    Object.entries(metrics.summary.byService).forEach(([service, data]) => {
+      const config = SERVICE_CONFIG[service];
+      if (config) {
+        costs[service] = data.apiCalls * config.costPerCall;
+      }
+    });
+    return costs;
+  }, [metrics]);
+
+  const totalApiCost = useMemo(() => {
+    return Object.values(serviceCosts).reduce((sum, cost) => sum + cost, 0);
+  }, [serviceCosts]);
+
+  const totalEstimatedCost = useMemo(() => {
+    return totalApiCost + (elevenLabsUsage?.estimatedCost || 0);
+  }, [totalApiCost, elevenLabsUsage]);
+
+  // Cache statistics
+  const cacheStats = useMemo(() => {
+    if (!metrics?.daily) return { hits: 0, misses: 0, total: 0, savedCalls: 0 };
+    const hits = metrics.daily.reduce((sum, d) => sum + d.cache.hits, 0);
+    const misses = metrics.daily.reduce((sum, d) => sum + d.cache.misses, 0);
+    return { hits, misses, total: hits + misses, savedCalls: hits };
+  }, [metrics]);
+
+  // Error breakdown by service
+  const errorBreakdown = useMemo(() => {
+    if (!metrics?.summary?.byService) return [];
+    return Object.entries(metrics.summary.byService)
+      .filter(([, data]) => data.errors > 0)
+      .map(([service, data]) => ({
+        service,
+        name: SERVICE_CONFIG[service]?.name || service,
+        errors: data.errors,
+        color: SERVICE_CONFIG[service]?.color || 'var(--text-muted)',
+      }))
+      .sort((a, b) => b.errors - a.errors);
+  }, [metrics]);
 
   if (metricsError) {
     return (
@@ -112,8 +206,8 @@ export default function CostsPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">API Usage & Costs</h1>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => (
             <div key={i} className="card animate-pulse">
               <div className="h-8 bg-[var(--card-border)] rounded mb-2" />
               <div className="h-4 w-16 bg-[var(--card-border)] rounded" />
@@ -147,48 +241,186 @@ export default function CostsPage() {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="card text-center">
-          <div className="text-3xl font-bold text-[var(--accent)]">
-            {formatNumber(metrics?.summary?.totalApiCalls || 0)}
-          </div>
-          <div className="text-sm text-[var(--text-muted)]">Total API Calls</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">Last {days} days</div>
-        </div>
-
-        <div className="card text-center">
-          <div className="text-3xl font-bold text-[var(--accent-green)]">
-            {metrics?.summary?.cacheHitRate || 0}%
-          </div>
-          <div className="text-sm text-[var(--text-muted)]">Cache Hit Rate</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">Saves API calls</div>
-        </div>
-
-        <div className="card text-center">
-          <div className="text-3xl font-bold text-[var(--accent-red)]">
-            {formatNumber(metrics?.summary?.totalErrors || 0)}
-          </div>
-          <div className="text-sm text-[var(--text-muted)]">Total Errors</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">Last {days} days</div>
-        </div>
-
-        {elevenLabsUsage ? (
-          <div className="card text-center">
-            <div className="text-3xl font-bold text-[var(--accent-orange)]">
-              {elevenLabsUsage.percentage}%
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {/* Total API Calls Card */}
+        <div
+          className={`card cursor-pointer transition-all ${expandedCard === 'calls' ? 'ring-2 ring-[var(--accent)]' : 'hover:bg-[var(--card-border)]/30'}`}
+          onClick={() => setExpandedCard(expandedCard === 'calls' ? null : 'calls')}
+        >
+          <div className="text-center">
+            <div className="text-3xl font-bold text-[var(--accent)]">
+              {formatNumber(metrics?.summary?.totalApiCalls || 0)}
             </div>
-            <div className="text-sm text-[var(--text-muted)]">ElevenLabs Quota</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">
-              {formatNumber(elevenLabsUsage.used)} / {formatNumber(elevenLabsUsage.limit)} chars
+            <div className="text-sm text-[var(--text-muted)]">Total API Calls</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">Last {days} days</div>
+          </div>
+          {expandedCard === 'calls' && (
+            <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2">
+              {Object.entries(SERVICE_CONFIG).map(([key, { name, color }]) => {
+                const calls = metrics?.summary?.byService[key]?.apiCalls || 0;
+                return (
+                  <div key={key} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                      <span>{name}</span>
+                    </div>
+                    <span className="tabular-nums font-medium">{formatNumber(calls)}</span>
+                  </div>
+                );
+              })}
             </div>
+          )}
+        </div>
+
+        {/* Cache Hit Rate Card */}
+        <div
+          className={`card cursor-pointer transition-all ${expandedCard === 'cache' ? 'ring-2 ring-[var(--accent-green)]' : 'hover:bg-[var(--card-border)]/30'}`}
+          onClick={() => setExpandedCard(expandedCard === 'cache' ? null : 'cache')}
+        >
+          <div className="text-center">
+            <div className="text-3xl font-bold text-[var(--accent-green)]">
+              {metrics?.summary?.cacheHitRate || 0}%
+            </div>
+            <div className="text-sm text-[var(--text-muted)]">Cache Hit Rate</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">Saves API calls</div>
           </div>
-        ) : (
-          <div className="card text-center">
-            <div className="text-3xl font-bold text-[var(--text-muted)]">-</div>
-            <div className="text-sm text-[var(--text-muted)]">ElevenLabs Quota</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">Not configured</div>
+          {expandedCard === 'cache' && (
+            <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-[var(--text-muted)]">Cache Hits</span>
+                <span className="font-medium text-[var(--accent-green)]">{formatNumber(cacheStats.hits)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--text-muted)]">Cache Misses</span>
+                <span className="font-medium text-[var(--accent-orange)]">{formatNumber(cacheStats.misses)}</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-[var(--card-border)]">
+                <span className="text-[var(--text-muted)]">API Calls Saved</span>
+                <span className="font-medium text-[var(--accent-green)]">{formatNumber(cacheStats.savedCalls)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Total Errors Card */}
+        <div
+          className={`card cursor-pointer transition-all ${expandedCard === 'errors' ? 'ring-2 ring-[var(--accent-red)]' : 'hover:bg-[var(--card-border)]/30'}`}
+          onClick={() => setExpandedCard(expandedCard === 'errors' ? null : 'errors')}
+        >
+          <div className="text-center">
+            <div className="text-3xl font-bold text-[var(--accent-red)]">
+              {formatNumber(metrics?.summary?.totalErrors || 0)}
+            </div>
+            <div className="text-sm text-[var(--text-muted)]">Total Errors</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">Last {days} days</div>
           </div>
-        )}
+          {expandedCard === 'errors' && (
+            <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2 text-sm">
+              {errorBreakdown.length > 0 ? (
+                errorBreakdown.map(({ service, name, errors, color }) => (
+                  <div key={service} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                      <span>{name}</span>
+                    </div>
+                    <span className="font-medium text-[var(--accent-red)]">{errors}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-[var(--text-muted)]">No errors recorded</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ElevenLabs Quota Card */}
+        <div
+          className={`card cursor-pointer transition-all ${expandedCard === 'elevenlabs' ? 'ring-2 ring-[var(--accent-orange)]' : 'hover:bg-[var(--card-border)]/30'}`}
+          onClick={() => setExpandedCard(expandedCard === 'elevenlabs' ? null : 'elevenlabs')}
+        >
+          {elevenLabsUsage ? (
+            <>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-[var(--accent-orange)]">
+                  {elevenLabsUsage.percentage}%
+                </div>
+                <div className="text-sm text-[var(--text-muted)]">ElevenLabs Quota</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">
+                  {formatNumber(elevenLabsUsage.used)} / {formatNumber(elevenLabsUsage.limit)} chars
+                </div>
+              </div>
+              {expandedCard === 'elevenlabs' && (
+                <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Plan</span>
+                    <span className="font-medium capitalize">{elevenLabsUsage.tier}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Characters Used</span>
+                    <span className="font-medium">{elevenLabsUsage.used.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Characters Left</span>
+                    <span className="font-medium">{(elevenLabsUsage.limit - elevenLabsUsage.used).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Rate</span>
+                    <span className="font-medium">${elevenLabsUsage.pricePerK}/1K chars</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-[var(--card-border)]">
+                    <span className="text-[var(--text-muted)]">Est. Cost</span>
+                    <span className="font-medium text-[var(--accent-orange)]">{formatCurrency(elevenLabsUsage.estimatedCost)}</span>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center">
+              <div className="text-3xl font-bold text-[var(--text-muted)]">-</div>
+              <div className="text-sm text-[var(--text-muted)]">ElevenLabs Quota</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1">Not configured</div>
+            </div>
+          )}
+        </div>
+
+        {/* Estimated Total Cost Card */}
+        <div
+          className={`card cursor-pointer transition-all ${expandedCard === 'cost' ? 'ring-2 ring-[var(--accent-purple)]' : 'hover:bg-[var(--card-border)]/30'}`}
+          onClick={() => setExpandedCard(expandedCard === 'cost' ? null : 'cost')}
+        >
+          <div className="text-center">
+            <div className="text-3xl font-bold text-[var(--accent-purple)]">
+              {formatCurrency(totalEstimatedCost)}
+            </div>
+            <div className="text-sm text-[var(--text-muted)]">Est. Total Cost</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">Last {days} days</div>
+          </div>
+          {expandedCard === 'cost' && (
+            <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2 text-sm">
+              {Object.entries(SERVICE_CONFIG).map(([key, { name, color, costNote }]) => {
+                const cost = serviceCosts[key] || 0;
+                return (
+                  <div key={key} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                      <span>{name}</span>
+                    </div>
+                    <span className="font-medium">{formatCurrency(cost)}</span>
+                  </div>
+                );
+              })}
+              {elevenLabsUsage && (
+                <div className="flex items-center justify-between pt-2 border-t border-[var(--card-border)]">
+                  <span className="text-[var(--text-muted)]">ElevenLabs Usage</span>
+                  <span className="font-medium text-[var(--accent-orange)]">{formatCurrency(elevenLabsUsage.estimatedCost)}</span>
+                </div>
+              )}
+              <div className="text-xs text-[var(--text-muted)] pt-2 border-t border-[var(--card-border)]">
+                * Estimates based on typical API pricing. Actual costs may vary.
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Per-Service Breakdown */}
@@ -202,16 +434,18 @@ export default function CostsPage() {
                 <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">Today</th>
                 <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">{days} Day Total</th>
                 <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">Errors</th>
+                <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">Est. Cost</th>
                 <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">% of Total</th>
               </tr>
             </thead>
             <tbody>
-              {Object.entries(SERVICE_LABELS).map(([key, { name, color }]) => {
+              {Object.entries(SERVICE_CONFIG).map(([key, { name, color, costNote }]) => {
                 const todayData = todayMetrics?.services[key] || { apiCalls: 0, errors: 0 };
                 const summaryData = metrics?.summary?.byService[key] || { apiCalls: 0, errors: 0 };
                 const percentage = metrics?.summary?.totalApiCalls
                   ? Math.round((summaryData.apiCalls / metrics.summary.totalApiCalls) * 100)
                   : 0;
+                const cost = serviceCosts[key] || 0;
 
                 return (
                   <tr key={key} className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50">
@@ -221,7 +455,10 @@ export default function CostsPage() {
                           className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: color }}
                         />
-                        <span className="font-medium">{name}</span>
+                        <div>
+                          <span className="font-medium">{name}</span>
+                          <div className="text-xs text-[var(--text-muted)]">{costNote}</div>
+                        </div>
                       </div>
                     </td>
                     <td className="text-right py-3 px-4 tabular-nums">
@@ -235,6 +472,13 @@ export default function CostsPage() {
                         <span className="text-[var(--accent-red)]">{summaryData.errors}</span>
                       ) : (
                         <span className="text-[var(--text-muted)]">0</span>
+                      )}
+                    </td>
+                    <td className="text-right py-3 px-4 tabular-nums">
+                      {cost > 0 ? (
+                        <span className="text-[var(--accent-green)]">{formatCurrency(cost)}</span>
+                      ) : (
+                        <span className="text-[var(--text-muted)]">Free</span>
                       )}
                     </td>
                     <td className="text-right py-3 px-4">
@@ -254,6 +498,48 @@ export default function CostsPage() {
                   </tr>
                 );
               })}
+              {/* ElevenLabs Usage Row */}
+              {elevenLabsUsage && (
+                <tr className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50 bg-[var(--card-border)]/20">
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--accent-orange)' }} />
+                      <div>
+                        <span className="font-medium">ElevenLabs (Characters)</span>
+                        <div className="text-xs text-[var(--text-muted)]">${elevenLabsUsage.pricePerK}/1K chars ({elevenLabsUsage.tier})</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="text-right py-3 px-4 tabular-nums text-[var(--text-muted)]">-</td>
+                  <td className="text-right py-3 px-4 tabular-nums font-medium">
+                    {formatNumber(elevenLabsUsage.used)} chars
+                  </td>
+                  <td className="text-right py-3 px-4 tabular-nums text-[var(--text-muted)]">-</td>
+                  <td className="text-right py-3 px-4 tabular-nums">
+                    <span className="text-[var(--accent-orange)]">{formatCurrency(elevenLabsUsage.estimatedCost)}</span>
+                  </td>
+                  <td className="text-right py-3 px-4 text-[var(--text-muted)]">
+                    {elevenLabsUsage.percentage}% of quota
+                  </td>
+                </tr>
+              )}
+              {/* Total Row */}
+              <tr className="bg-[var(--card-border)]/30 font-medium">
+                <td className="py-3 px-4">Total</td>
+                <td className="text-right py-3 px-4 tabular-nums">
+                  {formatNumber(Object.values(todayMetrics?.services || {}).reduce((sum, s) => sum + s.apiCalls, 0))}
+                </td>
+                <td className="text-right py-3 px-4 tabular-nums">
+                  {formatNumber(metrics?.summary?.totalApiCalls || 0)}
+                </td>
+                <td className="text-right py-3 px-4 tabular-nums text-[var(--accent-red)]">
+                  {metrics?.summary?.totalErrors || 0}
+                </td>
+                <td className="text-right py-3 px-4 tabular-nums text-[var(--accent-purple)]">
+                  {formatCurrency(totalEstimatedCost)}
+                </td>
+                <td className="text-right py-3 px-4">100%</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -267,7 +553,7 @@ export default function CostsPage() {
             <thead>
               <tr className="border-b border-[var(--card-border)]">
                 <th className="text-left py-3 px-4 font-medium text-[var(--text-muted)]">Date</th>
-                {Object.entries(SERVICE_LABELS).map(([key, { name }]) => (
+                {Object.entries(SERVICE_CONFIG).map(([key, { name }]) => (
                   <th key={key} className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">
                     {name}
                   </th>
@@ -290,7 +576,7 @@ export default function CostsPage() {
                 return (
                   <tr key={day.date} className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50">
                     <td className="py-3 px-4 font-medium">{formatDate(day.date)}</td>
-                    {Object.keys(SERVICE_LABELS).map((key) => (
+                    {Object.keys(SERVICE_CONFIG).map((key) => (
                       <td key={key} className="text-right py-3 px-4 tabular-nums">
                         {day.services[key]?.apiCalls || 0}
                       </td>
@@ -312,20 +598,16 @@ export default function CostsPage() {
       {/* Cache Stats */}
       <div className="card">
         <h2 className="text-lg font-semibold mb-4">Cache Performance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
             <div className="text-2xl font-bold text-[var(--accent-green)]">
-              {formatNumber(
-                metrics?.daily?.reduce((sum, d) => sum + d.cache.hits, 0) || 0
-              )}
+              {formatNumber(cacheStats.hits)}
             </div>
             <div className="text-sm text-[var(--text-muted)]">Cache Hits</div>
           </div>
           <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
             <div className="text-2xl font-bold text-[var(--accent-orange)]">
-              {formatNumber(
-                metrics?.daily?.reduce((sum, d) => sum + d.cache.misses, 0) || 0
-              )}
+              {formatNumber(cacheStats.misses)}
             </div>
             <div className="text-sm text-[var(--text-muted)]">Cache Misses</div>
           </div>
@@ -335,7 +617,16 @@ export default function CostsPage() {
             </div>
             <div className="text-sm text-[var(--text-muted)]">Hit Rate</div>
             <div className="text-xs text-[var(--text-muted)] mt-1">
-              Higher is better - reduces API calls
+              Higher is better
+            </div>
+          </div>
+          <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+            <div className="text-2xl font-bold text-[var(--accent-purple)]">
+              {formatNumber(cacheStats.savedCalls)}
+            </div>
+            <div className="text-sm text-[var(--text-muted)]">API Calls Saved</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">
+              Reduced external requests
             </div>
           </div>
         </div>
