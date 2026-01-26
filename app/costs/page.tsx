@@ -29,6 +29,14 @@ interface ElevenLabsData {
     character_count: number;
     character_limit: number;
     tier: string;
+    currency?: string;
+    status?: string;
+    billing_period?: string;
+    next_character_count_reset_unix?: number;
+    next_invoice?: {
+      amount_due_cents: number;
+      next_payment_attempt_unix: number;
+    };
   } | null;
 }
 
@@ -58,36 +66,42 @@ const SERVICE_CONFIG: Record<string, {
   color: string;
   costPerCall: number;
   costNote: string;
+  billingNote?: string;
 }> = {
   github: {
     name: 'GitHub',
     color: 'var(--foreground)',
     costPerCall: 0, // Free API
-    costNote: 'Free (rate limited)'
+    costNote: 'Free (rate limited)',
+    billingNote: 'No API costs'
   },
   railway: {
     name: 'Railway',
     color: 'var(--accent-purple)',
     costPerCall: 0, // API is free, costs are compute-based
-    costNote: 'Free (compute billed separately)'
+    costNote: 'API free - see dashboard',
+    billingNote: 'Billing via Railway dashboard only'
   },
   supabase: {
     name: 'Supabase',
     color: 'var(--accent-green)',
     costPerCall: 0, // API is free within limits
-    costNote: 'Free (database billed separately)'
+    costNote: 'API free - see dashboard',
+    billingNote: 'Billing via Supabase dashboard'
   },
   gcp: {
     name: 'GCP',
     color: 'var(--accent)',
     costPerCall: 0.0001, // ~$0.10 per 1000 calls for monitoring API
-    costNote: '$0.10 per 1K calls (monitoring)'
+    costNote: '$0.10 per 1K calls (est.)',
+    billingNote: 'Full billing via GCP Console'
   },
   elevenlabs: {
     name: 'ElevenLabs',
     color: 'var(--accent-orange)',
     costPerCall: 0, // Billed by characters, not API calls
-    costNote: 'Billed by characters used'
+    costNote: 'Billed by characters used',
+    billingNote: 'Actual invoice from API'
   },
 };
 
@@ -141,11 +155,36 @@ export default function CostsPage() {
 
   const elevenLabsUsage = useMemo(() => {
     if (!dashboard?.elevenLabs?.subscription) return null;
-    const { character_count, character_limit, tier } = dashboard.elevenLabs.subscription;
+    const sub = dashboard.elevenLabs.subscription;
+    const { character_count, character_limit, tier } = sub;
     const percentage = character_limit > 0 ? Math.round((character_count / character_limit) * 100) : 0;
     const pricePerK = ELEVENLABS_PRICING[tier.toLowerCase()] || 0.30;
     const estimatedCost = (character_count / 1000) * pricePerK;
-    return { used: character_count, limit: character_limit, percentage, tier, estimatedCost, pricePerK };
+
+    // Use actual invoice amount if available, otherwise use estimate
+    const actualInvoice = sub.next_invoice?.amount_due_cents
+      ? sub.next_invoice.amount_due_cents / 100
+      : null;
+    const nextPaymentDate = sub.next_invoice?.next_payment_attempt_unix
+      ? new Date(sub.next_invoice.next_payment_attempt_unix * 1000)
+      : null;
+    const resetDate = sub.next_character_count_reset_unix
+      ? new Date(sub.next_character_count_reset_unix * 1000)
+      : null;
+
+    return {
+      used: character_count,
+      limit: character_limit,
+      percentage,
+      tier,
+      estimatedCost,
+      actualInvoice,
+      nextPaymentDate,
+      resetDate,
+      pricePerK,
+      billingPeriod: sub.billing_period,
+      currency: sub.currency || 'USD',
+    };
   }, [dashboard]);
 
   // Calculate costs per service
@@ -166,7 +205,9 @@ export default function CostsPage() {
   }, [serviceCosts]);
 
   const totalEstimatedCost = useMemo(() => {
-    return totalApiCost + (elevenLabsUsage?.estimatedCost || 0);
+    // Use actual ElevenLabs invoice if available, otherwise use estimate
+    const elevenLabsCost = elevenLabsUsage?.actualInvoice ?? elevenLabsUsage?.estimatedCost ?? 0;
+    return totalApiCost + elevenLabsCost;
   }, [totalApiCost, elevenLabsUsage]);
 
   // Cache statistics
@@ -363,14 +404,33 @@ export default function CostsPage() {
                     <span className="text-[var(--text-muted)]">Characters Left</span>
                     <span className="font-medium">{(elevenLabsUsage.limit - elevenLabsUsage.used).toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between">
+                  {elevenLabsUsage.resetDate && (
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-muted)]">Resets</span>
+                      <span className="font-medium">{elevenLabsUsage.resetDate.toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-2 border-t border-[var(--card-border)]">
                     <span className="text-[var(--text-muted)]">Rate</span>
                     <span className="font-medium">${elevenLabsUsage.pricePerK}/1K chars</span>
                   </div>
-                  <div className="flex justify-between pt-2 border-t border-[var(--card-border)]">
-                    <span className="text-[var(--text-muted)]">Est. Cost</span>
-                    <span className="font-medium text-[var(--accent-orange)]">{formatCurrency(elevenLabsUsage.estimatedCost)}</span>
-                  </div>
+                  {elevenLabsUsage.actualInvoice !== null ? (
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-muted)]">Next Invoice</span>
+                      <span className="font-medium text-[var(--accent-orange)]">{formatCurrency(elevenLabsUsage.actualInvoice)}</span>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-muted)]">Est. Usage Cost</span>
+                      <span className="font-medium text-[var(--accent-orange)]">{formatCurrency(elevenLabsUsage.estimatedCost)}</span>
+                    </div>
+                  )}
+                  {elevenLabsUsage.nextPaymentDate && (
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-muted)]">Payment Date</span>
+                      <span className="font-medium">{elevenLabsUsage.nextPaymentDate.toLocaleDateString()}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -397,7 +457,7 @@ export default function CostsPage() {
           </div>
           {expandedCard === 'cost' && (
             <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2 text-sm">
-              {Object.entries(SERVICE_CONFIG).map(([key, { name, color, costNote }]) => {
+              {Object.entries(SERVICE_CONFIG).map(([key, { name, color, billingNote }]) => {
                 const cost = serviceCosts[key] || 0;
                 return (
                   <div key={key} className="flex items-center justify-between">
@@ -405,18 +465,39 @@ export default function CostsPage() {
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                       <span>{name}</span>
                     </div>
-                    <span className="font-medium">{formatCurrency(cost)}</span>
+                    <span className="font-medium">{cost > 0 ? formatCurrency(cost) : 'Free'}</span>
                   </div>
                 );
               })}
               {elevenLabsUsage && (
                 <div className="flex items-center justify-between pt-2 border-t border-[var(--card-border)]">
-                  <span className="text-[var(--text-muted)]">ElevenLabs Usage</span>
-                  <span className="font-medium text-[var(--accent-orange)]">{formatCurrency(elevenLabsUsage.estimatedCost)}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--accent-orange)' }} />
+                    <span>ElevenLabs</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-medium text-[var(--accent-orange)]">
+                      {formatCurrency(elevenLabsUsage.actualInvoice ?? elevenLabsUsage.estimatedCost)}
+                    </span>
+                    {elevenLabsUsage.actualInvoice !== null && (
+                      <span className="ml-1 text-xs text-[var(--accent-green)]">(actual)</span>
+                    )}
+                  </div>
                 </div>
               )}
-              <div className="text-xs text-[var(--text-muted)] pt-2 border-t border-[var(--card-border)]">
-                * Estimates based on typical API pricing. Actual costs may vary.
+              <div className="text-xs text-[var(--text-muted)] pt-2 border-t border-[var(--card-border)] space-y-1">
+                <div className="flex items-center gap-1">
+                  <span className="text-[var(--accent-green)]">*</span>
+                  <span>ElevenLabs: Actual invoice from API</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[var(--accent-orange)]">*</span>
+                  <span>GCP: Estimate - full billing in GCP Console</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[var(--text-muted)]">*</span>
+                  <span>Railway/Supabase: No billing API - check dashboards</span>
+                </div>
               </div>
             </div>
           )}
@@ -506,7 +587,12 @@ export default function CostsPage() {
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--accent-orange)' }} />
                       <div>
                         <span className="font-medium">ElevenLabs (Characters)</span>
-                        <div className="text-xs text-[var(--text-muted)]">${elevenLabsUsage.pricePerK}/1K chars ({elevenLabsUsage.tier})</div>
+                        <div className="text-xs text-[var(--text-muted)]">
+                          {elevenLabsUsage.actualInvoice !== null
+                            ? `Actual invoice: ${formatCurrency(elevenLabsUsage.actualInvoice)}`
+                            : `$${elevenLabsUsage.pricePerK}/1K chars (${elevenLabsUsage.tier})`
+                          }
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -516,7 +602,12 @@ export default function CostsPage() {
                   </td>
                   <td className="text-right py-3 px-4 tabular-nums text-[var(--text-muted)]">-</td>
                   <td className="text-right py-3 px-4 tabular-nums">
-                    <span className="text-[var(--accent-orange)]">{formatCurrency(elevenLabsUsage.estimatedCost)}</span>
+                    <span className="text-[var(--accent-orange)]">
+                      {formatCurrency(elevenLabsUsage.actualInvoice ?? elevenLabsUsage.estimatedCost)}
+                    </span>
+                    {elevenLabsUsage.actualInvoice !== null && (
+                      <div className="text-xs text-[var(--accent-green)]">Actual</div>
+                    )}
                   </td>
                   <td className="text-right py-3 px-4 text-[var(--text-muted)]">
                     {elevenLabsUsage.percentage}% of quota
