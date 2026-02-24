@@ -6,6 +6,13 @@ import { RepoWithDetails } from '@/lib/github';
 import { timeAgo, getSeverityColor, getSeverityOrder, normalizeSeverity } from '@/lib/utils';
 import { ScanJob } from '@/lib/scanner/types';
 import { ScanButton } from '@/app/components/ScanButton';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Search, X } from 'lucide-react';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -430,9 +437,9 @@ export default function SecurityPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Security Alerts</h1>
-        <div className="card text-center py-12">
+        <Card className="p-4 text-center py-12">
           <p className="text-[var(--accent-red)]">Failed to load security data</p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -441,14 +448,14 @@ export default function SecurityPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Security Alerts</h1>
-        <div className="card animate-pulse">
-          <div className="h-10 bg-[var(--card-border)] rounded mb-4" />
+        <Card className="p-4">
+          <Skeleton className="h-10 w-full mb-4" />
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-[var(--card-border)] rounded" />
+              <Skeleton key={i} className="h-16 w-full" />
             ))}
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -457,13 +464,13 @@ export default function SecurityPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Security Alerts</h1>
-        <div className="card text-center py-12">
-          <svg className="w-16 h-16 mx-auto mb-4 text-[var(--text-muted)]" fill="currentColor" viewBox="0 0 16 16">
+        <Card className="p-4 text-center py-12">
+          <svg className="w-16 h-16 mx-auto mb-4 text-muted-foreground" fill="currentColor" viewBox="0 0 16 16">
             <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
           </svg>
           <h2 className="text-xl font-semibold mb-2">GitHub Token Required</h2>
-          <p className="text-[var(--text-muted)] mb-4">Security alerts require authentication</p>
-        </div>
+          <p className="text-muted-foreground mb-4">Security alerts require authentication</p>
+        </Card>
       </div>
     );
   }
@@ -501,40 +508,20 @@ export default function SecurityPage() {
         </div>
       </div>
 
-      {/* Scan Controls */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold flex items-center gap-2">
-            <svg className="w-5 h-5 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            Local Security Scanning
-          </h2>
-          {scanSummary.total > 0 && (
-            <div className="text-xs text-[var(--text-muted)]">
-              {scanSummary.total} scan{scanSummary.total !== 1 ? 's' : ''} completed
-              {scanSummary.trivy + scanSummary.gitleaks + scanSummary.semgrep > 0 && (
-                <span className="ml-2">
-                  ({scanSummary.trivy} deps, {scanSummary.gitleaks} secrets, {scanSummary.semgrep} code)
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-        <p className="text-sm text-[var(--text-muted)] mb-4">
-          Run Trivy, Gitleaks, and Semgrep scans on your repositories
-        </p>
-        <div className="flex items-center gap-3">
-          <select
-            value={scanRepoSelection}
-            onChange={(e) => setScanRepoSelection(e.target.value)}
-            className="flex-1 max-w-xs px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
-          >
-            <option value="">Select a repository...</option>
-            {repoNames.map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
+      {/* Scan & Filters */}
+      <Card className="p-4 space-y-4">
+        {/* Scan Controls Row */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={scanRepoSelection || undefined} onValueChange={setScanRepoSelection}>
+            <SelectTrigger className="w-auto min-w-[200px]">
+              <SelectValue placeholder="Select a repository..." />
+            </SelectTrigger>
+            <SelectContent>
+              {repoNames.map(name => (
+                <SelectItem key={name} value={name}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <ScanButton
             repoName={scanRepoSelection}
             scanning={scanning[scanRepoSelection] || false}
@@ -542,11 +529,21 @@ export default function SecurityPage() {
             onScan={handleScan}
             disabled={!scanRepoSelection}
           />
+          {scanSummary.total > 0 && (
+            <span className="text-xs text-muted-foreground ml-auto">
+              {scanSummary.total} scan{scanSummary.total !== 1 ? 's' : ''} completed
+              {scanSummary.trivy + scanSummary.gitleaks + scanSummary.semgrep > 0 && (
+                <span className="ml-1">
+                  ({scanSummary.trivy} deps, {scanSummary.gitleaks} secrets, {scanSummary.semgrep} code)
+                </span>
+              )}
+            </span>
+          )}
         </div>
 
         {/* Latest Scan Result Summary */}
         {latestCompletedScan && latestCompletedScan.id !== dismissedScanId && (
-          <div className="mt-4 pt-4 border-t border-[var(--card-border)]">
+          <div className="pt-3 border-t border-border">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
@@ -556,7 +553,7 @@ export default function SecurityPage() {
                   <span className="font-medium text-sm">
                     Scan completed: <span className="text-[var(--accent)]">{latestCompletedScan.repoName}</span>
                   </span>
-                  <span className="text-xs text-[var(--text-muted)]">
+                  <span className="text-xs text-muted-foreground">
                     {latestCompletedScan.completedAt && timeAgo(latestCompletedScan.completedAt)}
                   </span>
                 </div>
@@ -566,7 +563,7 @@ export default function SecurityPage() {
                     <svg className="w-4 h-4 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
                       <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
                     </svg>
-                    <span className="text-[var(--text-muted)]">Trivy:</span>
+                    <span className="text-muted-foreground">Trivy:</span>
                     {(() => {
                       const error = latestCompletedScan.results?.toolErrors?.trivy;
                       if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
@@ -591,7 +588,7 @@ export default function SecurityPage() {
                     <svg className="w-4 h-4 text-[var(--accent-red)]" fill="currentColor" viewBox="0 0 16 16">
                       <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
                     </svg>
-                    <span className="text-[var(--text-muted)]">Secrets:</span>
+                    <span className="text-muted-foreground">Secrets:</span>
                     {(() => {
                       const error = latestCompletedScan.results?.toolErrors?.gitleaks;
                       if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
@@ -605,7 +602,7 @@ export default function SecurityPage() {
                     <svg className="w-4 h-4 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
                       <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
                     </svg>
-                    <span className="text-[var(--text-muted)]">Code:</span>
+                    <span className="text-muted-foreground">Code:</span>
                     {(() => {
                       const error = latestCompletedScan.results?.toolErrors?.semgrep;
                       if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
@@ -622,7 +619,7 @@ export default function SecurityPage() {
                           {medium > 0 && <span className="text-[#d29922]">{medium}M</span>}
                           {low > 0 && <span className="text-[#8b949e]">{low}L</span>}
                           {critical === 0 && high === 0 && medium === 0 && low === 0 && (
-                            <span className="text-[var(--text-muted)]">{findings.length} found</span>
+                            <span className="text-muted-foreground">{findings.length} found</span>
                           )}
                         </span>
                       );
@@ -633,91 +630,91 @@ export default function SecurityPage() {
                 {latestCompletedScan.results?.toolErrors && Object.keys(latestCompletedScan.results.toolErrors).length > 0 && (
                   <div className="mt-2 text-xs text-[var(--accent-red)]">
                     Tools not installed: {Object.keys(latestCompletedScan.results.toolErrors).join(', ')}.
-                    <span className="text-[var(--text-muted)]"> Deploy with Docker to enable scanning.</span>
+                    <span className="text-muted-foreground"> Deploy with Docker to enable scanning.</span>
                   </div>
                 )}
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setDismissedScanId(latestCompletedScan.id)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text)] rounded"
+                className="h-8 w-8 text-muted-foreground"
                 title="Dismiss"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Filters */}
-      <div className="card">
-        <div className="flex flex-wrap gap-4">
+        {/* Filters Row */}
+        <div className="flex flex-wrap gap-3 pt-3 border-t border-border">
           {/* Search */}
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
                 type="text"
                 placeholder="Search alerts..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
+                className="pl-10"
               />
             </div>
           </div>
 
           {/* Source Filter */}
-          <select
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value as Source)}
-            className="px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
-          >
-            <option value="all">All Sources ({sourceCounts.github + sourceCounts.local})</option>
-            <option value="github">GitHub ({sourceCounts.github})</option>
-            <option value="local">Local Scans ({sourceCounts.local})</option>
-          </select>
+          <Select value={sourceFilter} onValueChange={(value) => setSourceFilter(value as Source)}>
+            <SelectTrigger className="w-auto min-w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sources ({sourceCounts.github + sourceCounts.local})</SelectItem>
+              <SelectItem value="github">GitHub ({sourceCounts.github})</SelectItem>
+              <SelectItem value="local">Local Scans ({sourceCounts.local})</SelectItem>
+            </SelectContent>
+          </Select>
 
           {/* Severity Filter */}
-          <select
-            value={severity}
-            onChange={(e) => setSeverity(e.target.value as Severity)}
-            className="px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
-          >
-            <option value="all">All Severities</option>
-            <option value="critical">Critical ({severityCounts.critical})</option>
-            <option value="high">High ({severityCounts.high})</option>
-            <option value="medium">Medium ({severityCounts.medium})</option>
-            <option value="low">Low ({severityCounts.low})</option>
-          </select>
+          <Select value={severity} onValueChange={(value) => setSeverity(value as Severity)}>
+            <SelectTrigger className="w-auto min-w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Severities</SelectItem>
+              <SelectItem value="critical">Critical ({severityCounts.critical})</SelectItem>
+              <SelectItem value="high">High ({severityCounts.high})</SelectItem>
+              <SelectItem value="medium">Medium ({severityCounts.medium})</SelectItem>
+              <SelectItem value="low">Low ({severityCounts.low})</SelectItem>
+            </SelectContent>
+          </Select>
 
           {/* Repo Filter */}
-          <select
-            value={selectedRepo}
-            onChange={(e) => setSelectedRepo(e.target.value)}
-            className="px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
-          >
-            <option value="all">All Repositories</option>
-            {repoNames.map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
+          <Select value={selectedRepo} onValueChange={setSelectedRepo}>
+            <SelectTrigger className="w-auto min-w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Repositories</SelectItem>
+              {repoNames.map(name => (
+                <SelectItem key={name} value={name}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'severity' | 'date' | 'repo')}
-            className="px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
-          >
-            <option value="severity">Sort by Severity</option>
-            <option value="date">Sort by Date</option>
-            <option value="repo">Sort by Repository</option>
-          </select>
+          <Select value={sortBy} onValueChange={(value) => setSortBy(value as 'severity' | 'date' | 'repo')}>
+            <SelectTrigger className="w-auto min-w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="severity">Sort by Severity</SelectItem>
+              <SelectItem value="date">Sort by Date</SelectItem>
+              <SelectItem value="repo">Sort by Repository</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      </div>
+      </Card>
 
       {/* Three Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -728,16 +725,16 @@ export default function SecurityPage() {
               <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
             </svg>
             Dependencies
-            <span className="badge bg-[var(--accent-orange)] text-white">{dependencyAlerts.length}</span>
+            <Badge className="rounded-full bg-[var(--accent-orange)] text-white">{dependencyAlerts.length}</Badge>
           </h2>
 
           {dependencyAlerts.length === 0 ? (
-            <div className="card text-center py-8">
+            <Card className="p-4 text-center py-8">
               <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
                 <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
               </svg>
               <p className="text-sm text-[var(--accent-green)] font-medium">No dependency alerts</p>
-            </div>
+            </Card>
           ) : (
             <div className="space-y-2 max-h-[600px] overflow-y-auto">
               {dependencyAlerts.map((alert) => (
@@ -754,16 +751,16 @@ export default function SecurityPage() {
               <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
             </svg>
             Code Analysis
-            <span className="badge bg-[var(--accent-purple)] text-white">{codeAlerts.length}</span>
+            <Badge className="rounded-full bg-[var(--accent-purple)] text-white">{codeAlerts.length}</Badge>
           </h2>
 
           {codeAlerts.length === 0 ? (
-            <div className="card text-center py-8">
+            <Card className="p-4 text-center py-8">
               <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
                 <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
               </svg>
               <p className="text-sm text-[var(--accent-green)] font-medium">No code issues</p>
-            </div>
+            </Card>
           ) : (
             <div className="space-y-2 max-h-[600px] overflow-y-auto">
               {codeAlerts.map((alert) => (
@@ -780,16 +777,16 @@ export default function SecurityPage() {
               <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
             </svg>
             Secrets
-            <span className="badge bg-[var(--accent-red)] text-white">{secretAlerts.length}</span>
+            <Badge className="rounded-full bg-[var(--accent-red)] text-white">{secretAlerts.length}</Badge>
           </h2>
 
           {secretAlerts.length === 0 ? (
-            <div className="card text-center py-8">
+            <Card className="p-4 text-center py-8">
               <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
                 <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
               </svg>
               <p className="text-sm text-[var(--accent-green)] font-medium">No secrets detected</p>
-            </div>
+            </Card>
           ) : (
             <div className="space-y-2 max-h-[600px] overflow-y-auto">
               {secretAlerts.map((alert) => (
@@ -806,67 +803,69 @@ export default function SecurityPage() {
 // Alert Card Component
 function AlertCard({ alert }: { alert: UnifiedAlert }) {
   const isLocal = alert.source === 'local';
-  const CardWrapper = alert.htmlUrl ? 'a' : 'div';
-  const cardProps = alert.htmlUrl ? {
-    href: alert.htmlUrl,
-    target: '_blank',
-    rel: 'noopener noreferrer',
-  } : {};
 
-  return (
-    <CardWrapper
-      {...cardProps}
-      className="card !p-3 flex items-start gap-3 hover:border-[var(--accent)] transition-colors block"
-    >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start gap-2 flex-wrap">
-          <span className={`badge shrink-0 text-xs ${getSeverityColor(alert.severity)}`}>
-            {alert.severity}
-          </span>
-          {isLocal && (
-            <span className="badge shrink-0 text-xs bg-[var(--accent)] text-white">
-              {alert.type}
-            </span>
-          )}
-          <h3 className="font-medium text-sm leading-tight break-words">{alert.title}</h3>
+  const content = (
+    <Card className="p-3 hover:border-[var(--accent)] transition-colors">
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-2 flex-wrap">
+            <Badge className={`rounded-full shrink-0 text-xs ${getSeverityColor(alert.severity)}`}>
+              {alert.severity}
+            </Badge>
+            {isLocal && (
+              <Badge className="rounded-full shrink-0 text-xs bg-[var(--accent)] text-white">
+                {alert.type}
+              </Badge>
+            )}
+            <h3 className="font-medium text-sm leading-tight break-words">{alert.title}</h3>
+          </div>
+          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
+            <span className="text-[var(--accent)]">{alert.repoName}</span>
+            {alert.package && (
+              <>
+                <span>·</span>
+                <span>{alert.package}</span>
+              </>
+            )}
+            {alert.path && (
+              <>
+                <span>·</span>
+                <span className="truncate max-w-[150px]">
+                  {alert.path}{alert.line ? `:${alert.line}` : ''}
+                </span>
+              </>
+            )}
+            {alert.cveId && (
+              <>
+                <span>·</span>
+                <span>{alert.cveId}</span>
+              </>
+            )}
+            {alert.tool && (
+              <>
+                <span>·</span>
+                <span>{alert.tool}</span>
+              </>
+            )}
+            <span>·</span>
+            <span>{timeAgo(alert.createdAt)}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-muted)] flex-wrap">
-          <span className="text-[var(--accent)]">{alert.repoName}</span>
-          {alert.package && (
-            <>
-              <span>·</span>
-              <span>{alert.package}</span>
-            </>
-          )}
-          {alert.path && (
-            <>
-              <span>·</span>
-              <span className="truncate max-w-[150px]">
-                {alert.path}{alert.line ? `:${alert.line}` : ''}
-              </span>
-            </>
-          )}
-          {alert.cveId && (
-            <>
-              <span>·</span>
-              <span>{alert.cveId}</span>
-            </>
-          )}
-          {alert.tool && (
-            <>
-              <span>·</span>
-              <span>{alert.tool}</span>
-            </>
-          )}
-          <span>·</span>
-          <span>{timeAgo(alert.createdAt)}</span>
-        </div>
+        {alert.htmlUrl && (
+          <svg className="w-4 h-4 text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        )}
       </div>
-      {alert.htmlUrl && (
-        <svg className="w-4 h-4 text-[var(--text-muted)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-        </svg>
-      )}
-    </CardWrapper>
+    </Card>
   );
+
+  if (alert.htmlUrl) {
+    return (
+      <a href={alert.htmlUrl} target="_blank" rel="noopener noreferrer" className="block">
+        {content}
+      </a>
+    );
+  }
+  return content;
 }
