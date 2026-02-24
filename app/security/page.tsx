@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, X } from 'lucide-react';
+import { Search, X, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -433,6 +433,19 @@ export default function SecurityPage() {
   // Track dismissed scan summaries
   const [dismissedScanId, setDismissedScanId] = useState<string | null>(null);
 
+  // Mobile filter panel toggle
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const hasActiveFilters = search !== '' || severity !== 'all' || selectedRepo !== 'all' || sourceFilter !== 'all' || sortBy !== 'severity';
+
+  const clearAllFilters = () => {
+    setSearch('');
+    setSeverity('all');
+    setSelectedRepo('all');
+    setSourceFilter('all');
+    setSortBy('severity');
+  };
+
   if (error) {
     return (
       <div className="space-y-6">
@@ -475,6 +488,96 @@ export default function SecurityPage() {
     );
   }
 
+  const filterSidebar = (
+    <div className="space-y-5">
+      {/* Search */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Search</label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search alerts..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
+      {/* Source Filter */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Source</label>
+        <Select value={sourceFilter} onValueChange={(value) => setSourceFilter(value as Source)}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sources ({sourceCounts.github + sourceCounts.local})</SelectItem>
+            <SelectItem value="github">GitHub ({sourceCounts.github})</SelectItem>
+            <SelectItem value="local">Local Scans ({sourceCounts.local})</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Severity Filter */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Severity</label>
+        <Select value={severity} onValueChange={(value) => setSeverity(value as Severity)}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Severities</SelectItem>
+            <SelectItem value="critical">Critical ({severityCounts.critical})</SelectItem>
+            <SelectItem value="high">High ({severityCounts.high})</SelectItem>
+            <SelectItem value="medium">Medium ({severityCounts.medium})</SelectItem>
+            <SelectItem value="low">Low ({severityCounts.low})</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Repo Filter */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Repository</label>
+        <Select value={selectedRepo} onValueChange={setSelectedRepo}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Repositories</SelectItem>
+            {repoNames.map(name => (
+              <SelectItem key={name} value={name}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Sort */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sort by</label>
+        <Select value={sortBy} onValueChange={(value) => setSortBy(value as 'severity' | 'date' | 'repo')}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="severity">Severity</SelectItem>
+            <SelectItem value="date">Date</SelectItem>
+            <SelectItem value="repo">Repository</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Clear Filters */}
+      {hasActiveFilters && (
+        <Button variant="ghost" size="sm" onClick={clearAllFilters} className="w-full text-muted-foreground">
+          <X className="w-3 h-3 mr-1" />
+          Clear filters
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -508,292 +611,268 @@ export default function SecurityPage() {
         </div>
       </div>
 
-      {/* Scan & Filters */}
-      <Card className="p-4 space-y-4">
-        {/* Scan Controls Row */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <Select value={scanRepoSelection || undefined} onValueChange={setScanRepoSelection}>
-            <SelectTrigger className="w-auto min-w-[200px]">
-              <SelectValue placeholder="Select a repository..." />
-            </SelectTrigger>
-            <SelectContent>
-              {repoNames.map(name => (
-                <SelectItem key={name} value={name}>{name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <ScanButton
-            repoName={scanRepoSelection}
-            scanning={scanning[scanRepoSelection] || false}
-            progress={scanJobs[scanRepoSelection]}
-            onScan={handleScan}
-            disabled={!scanRepoSelection}
-          />
-          {scanSummary.total > 0 && (
-            <span className="text-xs text-muted-foreground ml-auto">
-              {scanSummary.total} scan{scanSummary.total !== 1 ? 's' : ''} completed
-              {scanSummary.trivy + scanSummary.gitleaks + scanSummary.semgrep > 0 && (
-                <span className="ml-1">
-                  ({scanSummary.trivy} deps, {scanSummary.gitleaks} secrets, {scanSummary.semgrep} code)
+      {/* Sidebar + Main Content */}
+      <div className="flex gap-6">
+        {/* Left Sidebar - Filters (desktop) */}
+        <aside className="hidden lg:block w-[220px] shrink-0">
+          <div className="sticky top-6">
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-semibold">Filters</span>
+              </div>
+              {filterSidebar}
+            </Card>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <div className="flex-1 min-w-0 space-y-6">
+          {/* Mobile Filters Toggle */}
+          <div className="lg:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFiltersOpen(!filtersOpen)}
+              className="w-full justify-between"
+            >
+              <span className="flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Filters
+                {hasActiveFilters && (
+                  <Badge className="rounded-full bg-[var(--accent)] text-white text-xs px-1.5 py-0">
+                    !
+                  </Badge>
+                )}
+              </span>
+              {filtersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
+            {filtersOpen && (
+              <Card className="p-4 mt-2">
+                {filterSidebar}
+              </Card>
+            )}
+          </div>
+
+          {/* Scan Controls */}
+          <Card className="p-4 space-y-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Select value={scanRepoSelection || undefined} onValueChange={setScanRepoSelection}>
+                <SelectTrigger className="w-auto min-w-[200px]">
+                  <SelectValue placeholder="Select a repository..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {repoNames.map(name => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <ScanButton
+                repoName={scanRepoSelection}
+                scanning={scanning[scanRepoSelection] || false}
+                progress={scanJobs[scanRepoSelection]}
+                onScan={handleScan}
+                disabled={!scanRepoSelection}
+              />
+              {scanSummary.total > 0 && (
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {scanSummary.total} scan{scanSummary.total !== 1 ? 's' : ''} completed
+                  {scanSummary.trivy + scanSummary.gitleaks + scanSummary.semgrep > 0 && (
+                    <span className="ml-1">
+                      ({scanSummary.trivy} deps, {scanSummary.gitleaks} secrets, {scanSummary.semgrep} code)
+                    </span>
+                  )}
                 </span>
               )}
-            </span>
-          )}
-        </div>
+            </div>
 
-        {/* Latest Scan Result Summary */}
-        {latestCompletedScan && latestCompletedScan.id !== dismissedScanId && (
-          <div className="pt-3 border-t border-border">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg className="w-4 h-4 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
+            {/* Latest Scan Result Summary */}
+            {latestCompletedScan && latestCompletedScan.id !== dismissedScanId && (
+              <div className="pt-3 border-t border-border">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <svg className="w-4 h-4 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                      </svg>
+                      <span className="font-medium text-sm">
+                        Scan completed: <span className="text-[var(--accent)]">{latestCompletedScan.repoName}</span>
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {latestCompletedScan.completedAt && timeAgo(latestCompletedScan.completedAt)}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-sm">
+                      {/* Trivy Results */}
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--background)] rounded-lg">
+                        <svg className="w-4 h-4 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
+                          <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+                        </svg>
+                        <span className="text-muted-foreground">Trivy:</span>
+                        {(() => {
+                          const error = latestCompletedScan.results?.toolErrors?.trivy;
+                          if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
+                          const vulns = latestCompletedScan.results?.trivy?.vulnerabilities || [];
+                          const critical = vulns.filter(v => v.severity === 'CRITICAL').length;
+                          const high = vulns.filter(v => v.severity === 'HIGH').length;
+                          const medium = vulns.filter(v => v.severity === 'MEDIUM').length;
+                          const low = vulns.filter(v => v.severity === 'LOW').length;
+                          if (vulns.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
+                          return (
+                            <span className="flex gap-1.5">
+                              {critical > 0 && <span className="text-[#f85149]">{critical}C</span>}
+                              {high > 0 && <span className="text-[#db6d28]">{high}H</span>}
+                              {medium > 0 && <span className="text-[#d29922]">{medium}M</span>}
+                              {low > 0 && <span className="text-[#8b949e]">{low}L</span>}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                      {/* Gitleaks Results */}
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--background)] rounded-lg">
+                        <svg className="w-4 h-4 text-[var(--accent-red)]" fill="currentColor" viewBox="0 0 16 16">
+                          <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
+                        </svg>
+                        <span className="text-muted-foreground">Secrets:</span>
+                        {(() => {
+                          const error = latestCompletedScan.results?.toolErrors?.gitleaks;
+                          if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
+                          const secrets = latestCompletedScan.results?.gitleaks?.secrets || [];
+                          if (secrets.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
+                          return <span className="text-[#f85149]">{secrets.length} found</span>;
+                        })()}
+                      </div>
+                      {/* Semgrep Results */}
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--background)] rounded-lg">
+                        <svg className="w-4 h-4 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
+                          <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
+                        </svg>
+                        <span className="text-muted-foreground">Code:</span>
+                        {(() => {
+                          const error = latestCompletedScan.results?.toolErrors?.semgrep;
+                          if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
+                          const findings = latestCompletedScan.results?.semgrep?.findings || [];
+                          if (findings.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
+                          const critical = findings.filter(f => f.severity === 'critical').length;
+                          const high = findings.filter(f => f.severity === 'high').length;
+                          const medium = findings.filter(f => f.severity === 'medium').length;
+                          const low = findings.filter(f => f.severity === 'low').length;
+                          return (
+                            <span className="flex gap-1.5">
+                              {critical > 0 && <span className="text-[#f85149]">{critical}C</span>}
+                              {high > 0 && <span className="text-[#db6d28]">{high}H</span>}
+                              {medium > 0 && <span className="text-[#d29922]">{medium}M</span>}
+                              {low > 0 && <span className="text-[#8b949e]">{low}L</span>}
+                              {critical === 0 && high === 0 && medium === 0 && low === 0 && (
+                                <span className="text-muted-foreground">{findings.length} found</span>
+                              )}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                    {/* Show error details if any tools failed */}
+                    {latestCompletedScan.results?.toolErrors && Object.keys(latestCompletedScan.results.toolErrors).length > 0 && (
+                      <div className="mt-2 text-xs text-[var(--accent-red)]">
+                        Tools not installed: {Object.keys(latestCompletedScan.results.toolErrors).join(', ')}.
+                        <span className="text-muted-foreground"> Deploy with Docker to enable scanning.</span>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDismissedScanId(latestCompletedScan.id)}
+                    className="h-8 w-8 text-muted-foreground"
+                    title="Dismiss"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Three Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Dependency Alerts Column */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <svg className="w-5 h-5 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+                </svg>
+                Dependencies
+                <Badge className="rounded-full bg-[var(--accent-orange)] text-white">{dependencyAlerts.length}</Badge>
+              </h2>
+
+              {dependencyAlerts.length === 0 ? (
+                <Card className="p-4 text-center py-8">
+                  <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
                   </svg>
-                  <span className="font-medium text-sm">
-                    Scan completed: <span className="text-[var(--accent)]">{latestCompletedScan.repoName}</span>
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {latestCompletedScan.completedAt && timeAgo(latestCompletedScan.completedAt)}
-                  </span>
+                  <p className="text-sm text-[var(--accent-green)] font-medium">No dependency alerts</p>
+                </Card>
+              ) : (
+                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                  {dependencyAlerts.map((alert) => (
+                    <AlertCard key={alert.id} alert={alert} />
+                  ))}
                 </div>
-                <div className="flex flex-wrap gap-3 text-sm">
-                  {/* Trivy Results */}
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--background)] rounded-lg">
-                    <svg className="w-4 h-4 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
-                    </svg>
-                    <span className="text-muted-foreground">Trivy:</span>
-                    {(() => {
-                      const error = latestCompletedScan.results?.toolErrors?.trivy;
-                      if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
-                      const vulns = latestCompletedScan.results?.trivy?.vulnerabilities || [];
-                      const critical = vulns.filter(v => v.severity === 'CRITICAL').length;
-                      const high = vulns.filter(v => v.severity === 'HIGH').length;
-                      const medium = vulns.filter(v => v.severity === 'MEDIUM').length;
-                      const low = vulns.filter(v => v.severity === 'LOW').length;
-                      if (vulns.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
-                      return (
-                        <span className="flex gap-1.5">
-                          {critical > 0 && <span className="text-[#f85149]">{critical}C</span>}
-                          {high > 0 && <span className="text-[#db6d28]">{high}H</span>}
-                          {medium > 0 && <span className="text-[#d29922]">{medium}M</span>}
-                          {low > 0 && <span className="text-[#8b949e]">{low}L</span>}
-                        </span>
-                      );
-                    })()}
-                  </div>
-                  {/* Gitleaks Results */}
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--background)] rounded-lg">
-                    <svg className="w-4 h-4 text-[var(--accent-red)]" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
-                    </svg>
-                    <span className="text-muted-foreground">Secrets:</span>
-                    {(() => {
-                      const error = latestCompletedScan.results?.toolErrors?.gitleaks;
-                      if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
-                      const secrets = latestCompletedScan.results?.gitleaks?.secrets || [];
-                      if (secrets.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
-                      return <span className="text-[#f85149]">{secrets.length} found</span>;
-                    })()}
-                  </div>
-                  {/* Semgrep Results */}
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--background)] rounded-lg">
-                    <svg className="w-4 h-4 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
-                    </svg>
-                    <span className="text-muted-foreground">Code:</span>
-                    {(() => {
-                      const error = latestCompletedScan.results?.toolErrors?.semgrep;
-                      if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
-                      const findings = latestCompletedScan.results?.semgrep?.findings || [];
-                      if (findings.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
-                      const critical = findings.filter(f => f.severity === 'critical').length;
-                      const high = findings.filter(f => f.severity === 'high').length;
-                      const medium = findings.filter(f => f.severity === 'medium').length;
-                      const low = findings.filter(f => f.severity === 'low').length;
-                      return (
-                        <span className="flex gap-1.5">
-                          {critical > 0 && <span className="text-[#f85149]">{critical}C</span>}
-                          {high > 0 && <span className="text-[#db6d28]">{high}H</span>}
-                          {medium > 0 && <span className="text-[#d29922]">{medium}M</span>}
-                          {low > 0 && <span className="text-[#8b949e]">{low}L</span>}
-                          {critical === 0 && high === 0 && medium === 0 && low === 0 && (
-                            <span className="text-muted-foreground">{findings.length} found</span>
-                          )}
-                        </span>
-                      );
-                    })()}
-                  </div>
+              )}
+            </div>
+
+            {/* Code Scanning Alerts Column */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <svg className="w-5 h-5 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
+                </svg>
+                Code Analysis
+                <Badge className="rounded-full bg-[var(--accent-purple)] text-white">{codeAlerts.length}</Badge>
+              </h2>
+
+              {codeAlerts.length === 0 ? (
+                <Card className="p-4 text-center py-8">
+                  <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                  </svg>
+                  <p className="text-sm text-[var(--accent-green)] font-medium">No code issues</p>
+                </Card>
+              ) : (
+                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                  {codeAlerts.map((alert) => (
+                    <AlertCard key={alert.id} alert={alert} />
+                  ))}
                 </div>
-                {/* Show error details if any tools failed */}
-                {latestCompletedScan.results?.toolErrors && Object.keys(latestCompletedScan.results.toolErrors).length > 0 && (
-                  <div className="mt-2 text-xs text-[var(--accent-red)]">
-                    Tools not installed: {Object.keys(latestCompletedScan.results.toolErrors).join(', ')}.
-                    <span className="text-muted-foreground"> Deploy with Docker to enable scanning.</span>
-                  </div>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setDismissedScanId(latestCompletedScan.id)}
-                className="h-8 w-8 text-muted-foreground"
-                title="Dismiss"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              )}
+            </div>
+
+            {/* Secret Scanning Alerts Column */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <svg className="w-5 h-5 text-[var(--accent-red)]" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
+                </svg>
+                Secrets
+                <Badge className="rounded-full bg-[var(--accent-red)] text-white">{secretAlerts.length}</Badge>
+              </h2>
+
+              {secretAlerts.length === 0 ? (
+                <Card className="p-4 text-center py-8">
+                  <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
+                  </svg>
+                  <p className="text-sm text-[var(--accent-green)] font-medium">No secrets detected</p>
+                </Card>
+              ) : (
+                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                  {secretAlerts.map((alert) => (
+                    <AlertCard key={alert.id} alert={alert} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        )}
-
-        {/* Filters Row */}
-        <div className="flex flex-wrap gap-3 pt-3 border-t border-border">
-          {/* Search */}
-          <div className="flex-1 min-w-[200px]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search alerts..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          {/* Source Filter */}
-          <Select value={sourceFilter} onValueChange={(value) => setSourceFilter(value as Source)}>
-            <SelectTrigger className="w-auto min-w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sources ({sourceCounts.github + sourceCounts.local})</SelectItem>
-              <SelectItem value="github">GitHub ({sourceCounts.github})</SelectItem>
-              <SelectItem value="local">Local Scans ({sourceCounts.local})</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Severity Filter */}
-          <Select value={severity} onValueChange={(value) => setSeverity(value as Severity)}>
-            <SelectTrigger className="w-auto min-w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Severities</SelectItem>
-              <SelectItem value="critical">Critical ({severityCounts.critical})</SelectItem>
-              <SelectItem value="high">High ({severityCounts.high})</SelectItem>
-              <SelectItem value="medium">Medium ({severityCounts.medium})</SelectItem>
-              <SelectItem value="low">Low ({severityCounts.low})</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Repo Filter */}
-          <Select value={selectedRepo} onValueChange={setSelectedRepo}>
-            <SelectTrigger className="w-auto min-w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Repositories</SelectItem>
-              {repoNames.map(name => (
-                <SelectItem key={name} value={name}>{name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Sort */}
-          <Select value={sortBy} onValueChange={(value) => setSortBy(value as 'severity' | 'date' | 'repo')}>
-            <SelectTrigger className="w-auto min-w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="severity">Sort by Severity</SelectItem>
-              <SelectItem value="date">Sort by Date</SelectItem>
-              <SelectItem value="repo">Sort by Repository</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
-
-      {/* Three Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Dependency Alerts Column */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <svg className="w-5 h-5 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
-            </svg>
-            Dependencies
-            <Badge className="rounded-full bg-[var(--accent-orange)] text-white">{dependencyAlerts.length}</Badge>
-          </h2>
-
-          {dependencyAlerts.length === 0 ? (
-            <Card className="p-4 text-center py-8">
-              <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-              </svg>
-              <p className="text-sm text-[var(--accent-green)] font-medium">No dependency alerts</p>
-            </Card>
-          ) : (
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {dependencyAlerts.map((alert) => (
-                <AlertCard key={alert.id} alert={alert} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Code Scanning Alerts Column */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <svg className="w-5 h-5 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
-            </svg>
-            Code Analysis
-            <Badge className="rounded-full bg-[var(--accent-purple)] text-white">{codeAlerts.length}</Badge>
-          </h2>
-
-          {codeAlerts.length === 0 ? (
-            <Card className="p-4 text-center py-8">
-              <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-              </svg>
-              <p className="text-sm text-[var(--accent-green)] font-medium">No code issues</p>
-            </Card>
-          ) : (
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {codeAlerts.map((alert) => (
-                <AlertCard key={alert.id} alert={alert} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Secret Scanning Alerts Column */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <svg className="w-5 h-5 text-[var(--accent-red)]" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
-            </svg>
-            Secrets
-            <Badge className="rounded-full bg-[var(--accent-red)] text-white">{secretAlerts.length}</Badge>
-          </h2>
-
-          {secretAlerts.length === 0 ? (
-            <Card className="p-4 text-center py-8">
-              <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-              </svg>
-              <p className="text-sm text-[var(--accent-green)] font-medium">No secrets detected</p>
-            </Card>
-          ) : (
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {secretAlerts.map((alert) => (
-                <AlertCard key={alert.id} alert={alert} />
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>

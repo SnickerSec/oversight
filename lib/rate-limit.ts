@@ -26,7 +26,7 @@ const cleanup = setInterval(() => {
     }
   }
 }, 60_000)
-cleanup.unref()
+if (typeof cleanup.unref === 'function') cleanup.unref()
 
 export function rateLimit(
   key: string,
