@@ -50,7 +50,7 @@ export async function getScanJob(scanId: string): Promise<ScanJob | null> {
 
 async function cloneRepo(url: string, targetDir: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const git = spawn('git', ['clone', '--depth', '1', url, targetDir], {
+    const git = spawn('git', ['clone', '--depth', '1', '--', url, targetDir], {
       timeout: 120000, // 2 minute timeout for clone
     });
 
@@ -79,6 +79,11 @@ export async function startScan(
   githubToken: string,
   tools: ScanTool[]
 ): Promise<void> {
+  // Validate repoName to prevent command injection via crafted repository names
+  if (!/^[a-zA-Z0-9._-]+$/.test(repoName)) {
+    throw new Error(`Invalid repository name: ${repoName}`);
+  }
+
   const tmpDir = path.join(os.tmpdir(), `oversight-scan-${scanId}`);
 
   try {
@@ -115,7 +120,7 @@ export async function startScan(
         }
       } catch (toolError) {
         const errorMessage = toolError instanceof Error ? toolError.message : 'Unknown error';
-        console.error(`Tool ${tool} failed:`, errorMessage);
+        console.error('Tool %s failed: %s', tool, errorMessage);
         results.toolErrors![tool] = errorMessage;
         // Continue with other tools even if one fails
       }
