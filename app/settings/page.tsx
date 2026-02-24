@@ -2,6 +2,11 @@
 
 import { useState, useCallback } from 'react';
 import useSWR, { mutate } from 'swr';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TokenConfig {
   key: string;
@@ -126,7 +131,7 @@ function TokenCard({
   };
 
   return (
-    <div className="card">
+    <Card className="p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -135,18 +140,18 @@ function TokenCard({
               <span className="text-xs text-[var(--accent-red)]">Required</span>
             )}
             {token.configured && (
-              <span
-                className={`px-2 py-0.5 text-xs rounded ${
+              <Badge
+                className={`rounded-full ${
                   token.source === 'redis'
                     ? 'bg-[var(--accent)] text-white'
                     : 'bg-[var(--accent-green)] text-white'
                 }`}
               >
                 {token.source === 'redis' ? 'Redis' : 'Env'}
-              </span>
+              </Badge>
             )}
           </div>
-          <p className="text-sm text-[var(--text-muted)] mb-2">{token.description}</p>
+          <p className="text-sm text-muted-foreground mb-2">{token.description}</p>
           <code className="text-xs bg-[var(--card-border)] px-1.5 py-0.5 rounded">
             {token.envVar}
           </code>
@@ -171,10 +176,12 @@ function TokenCard({
                 </svg>
                 <span className="text-sm">Configured</span>
               </span>
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleTest}
                 disabled={testing}
-                className="px-2 py-1 text-xs border border-[var(--accent)] text-[var(--accent)] rounded hover:bg-[var(--accent)] hover:text-white disabled:opacity-50 flex items-center gap-1"
+                className="h-7 text-xs border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white"
               >
                 {testing ? (
                   <>
@@ -187,62 +194,68 @@ function TokenCard({
                 ) : (
                   'Test'
                 )}
-              </button>
+              </Button>
               {token.source === 'redis' && (
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="px-2 py-1 text-xs border border-[var(--accent-red)] text-[var(--accent-red)] rounded hover:bg-[var(--accent-red)] hover:text-white disabled:opacity-50"
+                  className="h-7 text-xs border-[var(--accent-red)] text-[var(--accent-red)] hover:bg-[var(--accent-red)] hover:text-white"
                 >
                   {deleting ? 'Removing...' : 'Remove'}
-                </button>
+                </Button>
               )}
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setIsEditing(!isEditing)}
-                className="px-2 py-1 text-xs border border-[var(--card-border)] rounded hover:bg-[var(--card-border)]"
+                className="h-7 text-xs"
               >
                 Update
-              </button>
+              </Button>
             </>
           ) : (
-            <button
+            <Button
+              size="sm"
               onClick={() => setIsEditing(!isEditing)}
               disabled={!redisConnected}
-              className="px-3 py-1.5 text-sm bg-[var(--accent)] text-white rounded hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Configure
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {isEditing && (
-        <div className="mt-4 pt-4 border-t border-[var(--card-border)]">
+        <div className="mt-4 pt-4 border-t border-border">
           <div className="flex gap-2">
-            <input
+            <Input
               type="password"
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder={`Enter ${token.label}...`}
-              className="flex-1 px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded text-sm focus:outline-none focus:border-[var(--accent)]"
+              className="flex-1"
             />
-            <button
+            <Button
+              size="sm"
               onClick={handleSave}
               disabled={saving || !value.trim()}
-              className="px-4 py-2 bg-[var(--accent-green)] text-white rounded text-sm hover:opacity-90 disabled:opacity-50"
+              className="bg-[var(--accent-green)] hover:bg-[var(--accent-green)]/90"
             >
               {saving ? 'Saving...' : 'Save'}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setIsEditing(false);
                 setValue('');
                 setError(null);
               }}
-              className="px-4 py-2 border border-[var(--card-border)] rounded text-sm hover:bg-[var(--card-border)]"
             >
               Cancel
-            </button>
+            </Button>
           </div>
           {error && <p className="mt-2 text-sm text-[var(--accent-red)]">{error}</p>}
         </div>
@@ -271,17 +284,19 @@ function TokenCard({
               <div className="opacity-75 text-xs mt-0.5">{testResult.details}</div>
             )}
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setTestResult(null)}
-            className="ml-auto opacity-50 hover:opacity-100"
+            className="h-6 w-6 ml-auto"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
               <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
             </svg>
-          </button>
+          </Button>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -320,9 +335,9 @@ export default function SettingsPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Settings</h1>
-        <div className="card text-center py-12">
+        <Card className="p-4 text-center py-12">
           <p className="text-[var(--accent-red)]">Failed to load settings</p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -331,11 +346,11 @@ export default function SettingsPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Settings</h1>
-        <div className="card animate-pulse">
-          <div className="h-20 bg-[var(--card-border)] rounded mb-4" />
-          <div className="h-20 bg-[var(--card-border)] rounded mb-4" />
-          <div className="h-20 bg-[var(--card-border)] rounded" />
-        </div>
+        <Card className="p-4">
+          <Skeleton className="h-20 w-full mb-4" />
+          <Skeleton className="h-20 w-full mb-4" />
+          <Skeleton className="h-20 w-full" />
+        </Card>
       </div>
     );
   }
@@ -364,14 +379,14 @@ export default function SettingsPage() {
           </svg>
           Settings
         </h1>
-        <div className="text-sm text-[var(--text-muted)]">
+        <div className="text-sm text-muted-foreground">
           {configuredCount} of {tokens.length} tokens configured
         </div>
       </div>
 
       {/* Redis Status */}
-      <div
-        className={`card !py-3 flex items-center gap-3 ${
+      <Card
+        className={`py-3 px-4 flex items-center gap-3 ${
           redisConnected
             ? 'border-[var(--accent-green)]'
             : 'border-[var(--accent-orange)]'
@@ -387,13 +402,13 @@ export default function SettingsPage() {
             Redis {redisConnected ? 'Connected' : 'Not Connected'}
           </span>
           {!redisConnected && (
-            <p className="text-sm text-[var(--text-muted)]">
+            <p className="text-sm text-muted-foreground">
               Add <code className="bg-[var(--card-border)] px-1 rounded">REDIS_URL</code> to
               enable token storage. Tokens will fall back to environment variables.
             </p>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Token List */}
       <div className="space-y-4">
@@ -412,7 +427,7 @@ export default function SettingsPage() {
       {tokens.find((t) => t.key === 'SLACK_WEBHOOK_URL')?.configured && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Integrations</h2>
-          <div className="card">
+          <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold flex items-center gap-2">
@@ -421,14 +436,13 @@ export default function SettingsPage() {
                   </svg>
                   Slack Notifications
                 </h3>
-                <p className="text-sm text-[var(--text-muted)] mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   Receive alerts for deployment failures and security scan findings
                 </p>
               </div>
-              <button
+              <Button
                 onClick={handleSlackTest}
                 disabled={testingSlack}
-                className="px-4 py-2 bg-[var(--accent)] text-white rounded hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
                 {testingSlack ? (
                   <>
@@ -441,7 +455,7 @@ export default function SettingsPage() {
                 ) : (
                   'Send Test Message'
                 )}
-              </button>
+              </Button>
             </div>
             {slackTestResult && (
               <div
@@ -454,14 +468,14 @@ export default function SettingsPage() {
                 {slackTestResult.message}
               </div>
             )}
-          </div>
+          </Card>
         </div>
       )}
 
       {/* Info Box */}
-      <div className="card bg-[var(--card-border)] !border-0">
+      <Card className="p-4 bg-muted border-0">
         <h3 className="font-semibold mb-2">How token storage works</h3>
-        <ul className="text-sm text-[var(--text-muted)] space-y-1">
+        <ul className="text-sm text-muted-foreground space-y-1">
           <li>
             <strong>Redis tokens</strong> are encrypted using AES-256-GCM and take priority
             over environment variables.
@@ -474,7 +488,7 @@ export default function SettingsPage() {
             Tokens stored in Redis can be updated without redeploying your application.
           </li>
         </ul>
-      </div>
+      </Card>
     </div>
   );
 }

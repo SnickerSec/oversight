@@ -2,6 +2,11 @@
 
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface ServiceMetrics {
   apiCalls: number;
@@ -328,9 +333,9 @@ export default function CostsPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">API Usage & Costs</h1>
-        <div className="card text-center py-12">
+        <Card className="p-4 text-center py-12">
           <p className="text-[var(--accent-red)]">Failed to load metrics</p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -341,10 +346,10 @@ export default function CostsPage() {
         <h1 className="text-2xl font-bold">API Usage & Costs</h1>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="card animate-pulse">
-              <div className="h-8 bg-[var(--card-border)] rounded mb-2" />
-              <div className="h-4 w-16 bg-[var(--card-border)] rounded" />
-            </div>
+            <Card key={i} className="p-4">
+              <Skeleton className="h-8 w-full mb-2" />
+              <Skeleton className="h-4 w-16" />
+            </Card>
           ))}
         </div>
       </div>
@@ -358,17 +363,14 @@ export default function CostsPage() {
         <h1 className="text-2xl font-bold">API Usage & Costs</h1>
         <div className="flex gap-2">
           {(['7d', '14d', '30d'] as DateRange[]).map((range) => (
-            <button
+            <Button
               key={range}
               onClick={() => setDateRange(range)}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                dateRange === range
-                  ? 'bg-[var(--accent)] text-white'
-                  : 'bg-[var(--card-border)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
-              }`}
+              variant={dateRange === range ? 'default' : 'outline'}
+              size="sm"
             >
               {range.replace('d', ' days')}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -376,19 +378,19 @@ export default function CostsPage() {
       {/* Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {/* Total API Calls Card */}
-        <div
-          className={`card cursor-pointer transition-all ${expandedCard === 'calls' ? 'ring-2 ring-[var(--accent)]' : 'hover:bg-[var(--card-border)]/30'}`}
+        <Card
+          className={`p-4 cursor-pointer transition-all ${expandedCard === 'calls' ? 'ring-2 ring-[var(--accent)]' : 'hover:bg-muted/30'}`}
           onClick={() => setExpandedCard(expandedCard === 'calls' ? null : 'calls')}
         >
           <div className="text-center">
             <div className="text-3xl font-bold text-[var(--accent)]">
               {formatNumber(metrics?.summary?.totalApiCalls || 0)}
             </div>
-            <div className="text-sm text-[var(--text-muted)]">Total API Calls</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">Last {days} days</div>
+            <div className="text-sm text-muted-foreground">Total API Calls</div>
+            <div className="text-xs text-muted-foreground mt-1">Last {days} days</div>
           </div>
           {expandedCard === 'calls' && (
-            <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2">
+            <div className="mt-4 pt-4 border-t border-border space-y-2">
               {Object.entries(SERVICE_CONFIG).map(([key, { name, color }]) => {
                 const calls = metrics?.summary?.byService[key]?.apiCalls || 0;
                 return (
@@ -403,52 +405,52 @@ export default function CostsPage() {
               })}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Cache Hit Rate Card */}
-        <div
-          className={`card cursor-pointer transition-all ${expandedCard === 'cache' ? 'ring-2 ring-[var(--accent-green)]' : 'hover:bg-[var(--card-border)]/30'}`}
+        <Card
+          className={`p-4 cursor-pointer transition-all ${expandedCard === 'cache' ? 'ring-2 ring-[var(--accent-green)]' : 'hover:bg-muted/30'}`}
           onClick={() => setExpandedCard(expandedCard === 'cache' ? null : 'cache')}
         >
           <div className="text-center">
             <div className="text-3xl font-bold text-[var(--accent-green)]">
               {metrics?.summary?.cacheHitRate || 0}%
             </div>
-            <div className="text-sm text-[var(--text-muted)]">Dashboard Cache</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">Reduces API calls</div>
+            <div className="text-sm text-muted-foreground">Dashboard Cache</div>
+            <div className="text-xs text-muted-foreground mt-1">Reduces API calls</div>
           </div>
           {expandedCard === 'cache' && (
-            <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2 text-sm">
+            <div className="mt-4 pt-4 border-t border-border space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-[var(--text-muted)]">Cache Hits</span>
+                <span className="text-muted-foreground">Cache Hits</span>
                 <span className="font-medium text-[var(--accent-green)]">{formatNumber(cacheStats.hits)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--text-muted)]">Cache Misses</span>
+                <span className="text-muted-foreground">Cache Misses</span>
                 <span className="font-medium text-[var(--accent-orange)]">{formatNumber(cacheStats.misses)}</span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-[var(--card-border)]">
-                <span className="text-[var(--text-muted)]">API Calls Saved</span>
+              <div className="flex justify-between pt-2 border-t border-border">
+                <span className="text-muted-foreground">API Calls Saved</span>
                 <span className="font-medium text-[var(--accent-green)]">{formatNumber(cacheStats.savedCalls)}</span>
               </div>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Total Errors Card */}
-        <div
-          className={`card cursor-pointer transition-all ${expandedCard === 'errors' ? 'ring-2 ring-[var(--accent-red)]' : 'hover:bg-[var(--card-border)]/30'}`}
+        <Card
+          className={`p-4 cursor-pointer transition-all ${expandedCard === 'errors' ? 'ring-2 ring-[var(--accent-red)]' : 'hover:bg-muted/30'}`}
           onClick={() => setExpandedCard(expandedCard === 'errors' ? null : 'errors')}
         >
           <div className="text-center">
             <div className="text-3xl font-bold text-[var(--accent-red)]">
               {formatNumber(metrics?.summary?.totalErrors || 0)}
             </div>
-            <div className="text-sm text-[var(--text-muted)]">Total Errors</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">Last {days} days</div>
+            <div className="text-sm text-muted-foreground">Total Errors</div>
+            <div className="text-xs text-muted-foreground mt-1">Last {days} days</div>
           </div>
           {expandedCard === 'errors' && (
-            <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2 text-sm">
+            <div className="mt-4 pt-4 border-t border-border space-y-2 text-sm">
               {errorBreakdown.length > 0 ? (
                 errorBreakdown.map(({ service, name, errors, color }) => (
                   <div key={service} className="flex items-center justify-between">
@@ -460,15 +462,15 @@ export default function CostsPage() {
                   </div>
                 ))
               ) : (
-                <div className="text-center text-[var(--text-muted)]">No errors recorded</div>
+                <div className="text-center text-muted-foreground">No errors recorded</div>
               )}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* ElevenLabs Quota Card */}
-        <div
-          className={`card cursor-pointer transition-all ${expandedCard === 'elevenlabs' ? 'ring-2 ring-[var(--accent-orange)]' : 'hover:bg-[var(--card-border)]/30'}`}
+        <Card
+          className={`p-4 cursor-pointer transition-all ${expandedCard === 'elevenlabs' ? 'ring-2 ring-[var(--accent-orange)]' : 'hover:bg-muted/30'}`}
           onClick={() => setExpandedCard(expandedCard === 'elevenlabs' ? null : 'elevenlabs')}
         >
           {elevenLabsUsage ? (
@@ -477,49 +479,49 @@ export default function CostsPage() {
                 <div className="text-3xl font-bold text-[var(--accent-orange)]">
                   {elevenLabsUsage.percentage}%
                 </div>
-                <div className="text-sm text-[var(--text-muted)]">ElevenLabs Quota</div>
-                <div className="text-xs text-[var(--text-muted)] mt-1">
+                <div className="text-sm text-muted-foreground">ElevenLabs Quota</div>
+                <div className="text-xs text-muted-foreground mt-1">
                   {formatNumber(elevenLabsUsage.used)} / {formatNumber(elevenLabsUsage.limit)} chars
                 </div>
               </div>
               {expandedCard === 'elevenlabs' && (
-                <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2 text-sm">
+                <div className="mt-4 pt-4 border-t border-border space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">Plan</span>
+                    <span className="text-muted-foreground">Plan</span>
                     <span className="font-medium capitalize">{elevenLabsUsage.tier}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">Characters Used</span>
+                    <span className="text-muted-foreground">Characters Used</span>
                     <span className="font-medium">{elevenLabsUsage.used.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">Characters Left</span>
+                    <span className="text-muted-foreground">Characters Left</span>
                     <span className="font-medium">{(elevenLabsUsage.limit - elevenLabsUsage.used).toLocaleString()}</span>
                   </div>
                   {elevenLabsUsage.resetDate && (
                     <div className="flex justify-between">
-                      <span className="text-[var(--text-muted)]">Resets</span>
+                      <span className="text-muted-foreground">Resets</span>
                       <span className="font-medium">{elevenLabsUsage.resetDate.toLocaleDateString()}</span>
                     </div>
                   )}
-                  <div className="flex justify-between pt-2 border-t border-[var(--card-border)]">
-                    <span className="text-[var(--text-muted)]">Rate</span>
+                  <div className="flex justify-between pt-2 border-t border-border">
+                    <span className="text-muted-foreground">Rate</span>
                     <span className="font-medium">${elevenLabsUsage.pricePerK}/1K chars</span>
                   </div>
                   {elevenLabsUsage.actualInvoice !== null ? (
                     <div className="flex justify-between">
-                      <span className="text-[var(--text-muted)]">Next Invoice</span>
+                      <span className="text-muted-foreground">Next Invoice</span>
                       <span className="font-medium text-[var(--accent-orange)]">{formatCurrency(elevenLabsUsage.actualInvoice)}</span>
                     </div>
                   ) : (
                     <div className="flex justify-between">
-                      <span className="text-[var(--text-muted)]">Est. Usage Cost</span>
+                      <span className="text-muted-foreground">Est. Usage Cost</span>
                       <span className="font-medium text-[var(--accent-orange)]">{formatCurrency(elevenLabsUsage.estimatedCost)}</span>
                     </div>
                   )}
                   {elevenLabsUsage.nextPaymentDate && (
                     <div className="flex justify-between">
-                      <span className="text-[var(--text-muted)]">Payment Date</span>
+                      <span className="text-muted-foreground">Payment Date</span>
                       <span className="font-medium">{elevenLabsUsage.nextPaymentDate.toLocaleDateString()}</span>
                     </div>
                   )}
@@ -528,27 +530,27 @@ export default function CostsPage() {
             </>
           ) : (
             <div className="text-center">
-              <div className="text-3xl font-bold text-[var(--text-muted)]">-</div>
-              <div className="text-sm text-[var(--text-muted)]">ElevenLabs Quota</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">Not configured</div>
+              <div className="text-3xl font-bold text-muted-foreground">-</div>
+              <div className="text-sm text-muted-foreground">ElevenLabs Quota</div>
+              <div className="text-xs text-muted-foreground mt-1">Not configured</div>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Estimated Total Cost Card */}
-        <div
-          className={`card cursor-pointer transition-all ${expandedCard === 'cost' ? 'ring-2 ring-[var(--accent-purple)]' : 'hover:bg-[var(--card-border)]/30'}`}
+        <Card
+          className={`p-4 cursor-pointer transition-all ${expandedCard === 'cost' ? 'ring-2 ring-[var(--accent-purple)]' : 'hover:bg-muted/30'}`}
           onClick={() => setExpandedCard(expandedCard === 'cost' ? null : 'cost')}
         >
           <div className="text-center">
             <div className="text-3xl font-bold text-[var(--accent-purple)]">
               {formatCurrency(totalEstimatedCost)}
             </div>
-            <div className="text-sm text-[var(--text-muted)]">Est. Total Cost</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">Last {days} days</div>
+            <div className="text-sm text-muted-foreground">Est. Total Cost</div>
+            <div className="text-xs text-muted-foreground mt-1">Last {days} days</div>
           </div>
           {expandedCard === 'cost' && (
-            <div className="mt-4 pt-4 border-t border-[var(--card-border)] space-y-2 text-sm">
+            <div className="mt-4 pt-4 border-t border-border space-y-2 text-sm">
               {Object.entries(SERVICE_CONFIG).map(([key, { name, color, billingNote }]) => {
                 const cost = serviceCosts[key] || 0;
                 return (
@@ -562,7 +564,7 @@ export default function CostsPage() {
                 );
               })}
               {elevenLabsUsage && (
-                <div className="flex items-center justify-between pt-2 border-t border-[var(--card-border)]">
+                <div className="flex items-center justify-between pt-2 border-t border-border">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--accent-orange)' }} />
                     <span>ElevenLabs</span>
@@ -577,7 +579,7 @@ export default function CostsPage() {
                   </div>
                 </div>
               )}
-              <div className="text-xs text-[var(--text-muted)] pt-2 border-t border-[var(--card-border)] space-y-1">
+              <div className="text-xs text-muted-foreground pt-2 border-t border-border space-y-1">
                 <div className="flex items-center gap-1">
                   <span className="text-[var(--accent-green)]">*</span>
                   <span>ElevenLabs: Actual invoice from API</span>
@@ -587,152 +589,150 @@ export default function CostsPage() {
                   <span>GCP: Estimate - full billing in GCP Console</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-[var(--text-muted)]">*</span>
+                  <span className="text-muted-foreground">*</span>
                   <span>Railway/Supabase: No billing API - check dashboards</span>
                 </div>
               </div>
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* Per-Service Breakdown */}
-      <div className="card">
+      <Card className="p-4">
         <h2 className="text-lg font-semibold mb-4">Service Breakdown</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--card-border)]">
-                <th className="text-left py-3 px-4 font-medium text-[var(--text-muted)]">Service</th>
-                <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">Today</th>
-                <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">{days} Day Total</th>
-                <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">Errors</th>
-                <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">Est. Cost</th>
-                <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">% of Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(SERVICE_CONFIG).map(([key, { name, color, costNote }]) => {
-                const todayData = todayMetrics?.services[key] || { apiCalls: 0, errors: 0 };
-                const summaryData = metrics?.summary?.byService[key] || { apiCalls: 0, errors: 0 };
-                const percentage = metrics?.summary?.totalApiCalls
-                  ? Math.round((summaryData.apiCalls / metrics.summary.totalApiCalls) * 100)
-                  : 0;
-                const cost = serviceCosts[key] || 0;
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="py-3 px-4">Service</TableHead>
+              <TableHead className="text-right py-3 px-4">Today</TableHead>
+              <TableHead className="text-right py-3 px-4">{days} Day Total</TableHead>
+              <TableHead className="text-right py-3 px-4">Errors</TableHead>
+              <TableHead className="text-right py-3 px-4">Est. Cost</TableHead>
+              <TableHead className="text-right py-3 px-4">% of Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Object.entries(SERVICE_CONFIG).map(([key, { name, color, costNote }]) => {
+              const todayData = todayMetrics?.services[key] || { apiCalls: 0, errors: 0 };
+              const summaryData = metrics?.summary?.byService[key] || { apiCalls: 0, errors: 0 };
+              const percentage = metrics?.summary?.totalApiCalls
+                ? Math.round((summaryData.apiCalls / metrics.summary.totalApiCalls) * 100)
+                : 0;
+              const cost = serviceCosts[key] || 0;
 
-                return (
-                  <tr key={key} className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: color }}
-                        />
-                        <div>
-                          <span className="font-medium">{name}</span>
-                          <div className="text-xs text-[var(--text-muted)]">{costNote}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="text-right py-3 px-4 tabular-nums">
-                      {formatNumber(todayData.apiCalls)}
-                    </td>
-                    <td className="text-right py-3 px-4 tabular-nums font-medium">
-                      {formatNumber(summaryData.apiCalls)}
-                    </td>
-                    <td className="text-right py-3 px-4 tabular-nums">
-                      {summaryData.errors > 0 ? (
-                        <span className="text-[var(--accent-red)]">{summaryData.errors}</span>
-                      ) : (
-                        <span className="text-[var(--text-muted)]">0</span>
-                      )}
-                    </td>
-                    <td className="text-right py-3 px-4 tabular-nums">
-                      {cost > 0 ? (
-                        <span className="text-[var(--accent-green)]">{formatCurrency(cost)}</span>
-                      ) : (
-                        <span className="text-[var(--text-muted)]">Free</span>
-                      )}
-                    </td>
-                    <td className="text-right py-3 px-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-16 h-2 bg-[var(--card-border)] rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${percentage}%`,
-                              backgroundColor: color,
-                            }}
-                          />
-                        </div>
-                        <span className="text-[var(--text-muted)] w-8 text-right">{percentage}%</span>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {/* ElevenLabs Usage Row */}
-              {elevenLabsUsage && (
-                <tr className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50 bg-[var(--card-border)]/20">
-                  <td className="py-3 px-4">
+              return (
+                <TableRow key={key}>
+                  <TableCell className="py-3 px-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--accent-orange)' }} />
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: color }}
+                      />
                       <div>
-                        <span className="font-medium">ElevenLabs (Characters)</span>
-                        <div className="text-xs text-[var(--text-muted)]">
-                          {elevenLabsUsage.actualInvoice !== null
-                            ? `Actual invoice: ${formatCurrency(elevenLabsUsage.actualInvoice)}`
-                            : `$${elevenLabsUsage.pricePerK}/1K chars (${elevenLabsUsage.tier})`
-                          }
-                        </div>
+                        <span className="font-medium">{name}</span>
+                        <div className="text-xs text-muted-foreground">{costNote}</div>
                       </div>
                     </div>
-                  </td>
-                  <td className="text-right py-3 px-4 tabular-nums text-[var(--text-muted)]">-</td>
-                  <td className="text-right py-3 px-4 tabular-nums font-medium">
-                    {formatNumber(elevenLabsUsage.used)} chars
-                  </td>
-                  <td className="text-right py-3 px-4 tabular-nums text-[var(--text-muted)]">-</td>
-                  <td className="text-right py-3 px-4 tabular-nums">
-                    <span className="text-[var(--accent-orange)]">
-                      {formatCurrency(elevenLabsUsage.actualInvoice ?? elevenLabsUsage.estimatedCost)}
-                    </span>
-                    {elevenLabsUsage.actualInvoice !== null && (
-                      <div className="text-xs text-[var(--accent-green)]">Actual</div>
+                  </TableCell>
+                  <TableCell className="text-right py-3 px-4 tabular-nums">
+                    {formatNumber(todayData.apiCalls)}
+                  </TableCell>
+                  <TableCell className="text-right py-3 px-4 tabular-nums font-medium">
+                    {formatNumber(summaryData.apiCalls)}
+                  </TableCell>
+                  <TableCell className="text-right py-3 px-4 tabular-nums">
+                    {summaryData.errors > 0 ? (
+                      <span className="text-[var(--accent-red)]">{summaryData.errors}</span>
+                    ) : (
+                      <span className="text-muted-foreground">0</span>
                     )}
-                  </td>
-                  <td className="text-right py-3 px-4 text-[var(--text-muted)]">
-                    {elevenLabsUsage.percentage}% of quota
-                  </td>
-                </tr>
-              )}
-              {/* Total Row */}
-              <tr className="bg-[var(--card-border)]/30 font-medium">
-                <td className="py-3 px-4">Total</td>
-                <td className="text-right py-3 px-4 tabular-nums">
-                  {formatNumber(Object.values(todayMetrics?.services || {}).reduce((sum, s) => sum + s.apiCalls, 0))}
-                </td>
-                <td className="text-right py-3 px-4 tabular-nums">
-                  {formatNumber(metrics?.summary?.totalApiCalls || 0)}
-                </td>
-                <td className="text-right py-3 px-4 tabular-nums text-[var(--accent-red)]">
-                  {metrics?.summary?.totalErrors || 0}
-                </td>
-                <td className="text-right py-3 px-4 tabular-nums text-[var(--accent-purple)]">
-                  {formatCurrency(totalEstimatedCost)}
-                </td>
-                <td className="text-right py-3 px-4">100%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  </TableCell>
+                  <TableCell className="text-right py-3 px-4 tabular-nums">
+                    {cost > 0 ? (
+                      <span className="text-[var(--accent-green)]">{formatCurrency(cost)}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Free</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right py-3 px-4">
+                    <div className="flex items-center justify-end gap-2">
+                      <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${percentage}%`,
+                            backgroundColor: color,
+                          }}
+                        />
+                      </div>
+                      <span className="text-muted-foreground w-8 text-right">{percentage}%</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {/* ElevenLabs Usage Row */}
+            {elevenLabsUsage && (
+              <TableRow className="bg-muted/20">
+                <TableCell className="py-3 px-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--accent-orange)' }} />
+                    <div>
+                      <span className="font-medium">ElevenLabs (Characters)</span>
+                      <div className="text-xs text-muted-foreground">
+                        {elevenLabsUsage.actualInvoice !== null
+                          ? `Actual invoice: ${formatCurrency(elevenLabsUsage.actualInvoice)}`
+                          : `$${elevenLabsUsage.pricePerK}/1K chars (${elevenLabsUsage.tier})`
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right py-3 px-4 tabular-nums text-muted-foreground">-</TableCell>
+                <TableCell className="text-right py-3 px-4 tabular-nums font-medium">
+                  {formatNumber(elevenLabsUsage.used)} chars
+                </TableCell>
+                <TableCell className="text-right py-3 px-4 tabular-nums text-muted-foreground">-</TableCell>
+                <TableCell className="text-right py-3 px-4 tabular-nums">
+                  <span className="text-[var(--accent-orange)]">
+                    {formatCurrency(elevenLabsUsage.actualInvoice ?? elevenLabsUsage.estimatedCost)}
+                  </span>
+                  {elevenLabsUsage.actualInvoice !== null && (
+                    <div className="text-xs text-[var(--accent-green)]">Actual</div>
+                  )}
+                </TableCell>
+                <TableCell className="text-right py-3 px-4 text-muted-foreground">
+                  {elevenLabsUsage.percentage}% of quota
+                </TableCell>
+              </TableRow>
+            )}
+            {/* Total Row */}
+            <TableRow className="bg-muted/30 font-medium">
+              <TableCell className="py-3 px-4">Total</TableCell>
+              <TableCell className="text-right py-3 px-4 tabular-nums">
+                {formatNumber(Object.values(todayMetrics?.services || {}).reduce((sum, s) => sum + s.apiCalls, 0))}
+              </TableCell>
+              <TableCell className="text-right py-3 px-4 tabular-nums">
+                {formatNumber(metrics?.summary?.totalApiCalls || 0)}
+              </TableCell>
+              <TableCell className="text-right py-3 px-4 tabular-nums text-[var(--accent-red)]">
+                {metrics?.summary?.totalErrors || 0}
+              </TableCell>
+              <TableCell className="text-right py-3 px-4 tabular-nums text-[var(--accent-purple)]">
+                {formatCurrency(totalEstimatedCost)}
+              </TableCell>
+              <TableCell className="text-right py-3 px-4">100%</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </Card>
 
       {/* GCP Billing Details */}
       {dashboard?.hasGCPToken && (
-        <div className="card">
+        <Card className="p-4">
           <h2 className="text-lg font-semibold mb-2">GCP Billing</h2>
-          <p className="text-sm text-[var(--text-muted)] mb-4">
+          <p className="text-sm text-muted-foreground mb-4">
             Actual billing data from Google Cloud Billing API
           </p>
 
@@ -744,12 +744,12 @@ export default function CostsPage() {
                 </svg>
                 <div>
                   <div className="font-medium text-[var(--accent-red)]">Billing API Error</div>
-                  <div className="text-sm text-[var(--text-muted)] mt-1">{gcpBilling.error}</div>
-                  <div className="text-sm text-[var(--text-muted)] mt-2">
+                  <div className="text-sm text-muted-foreground mt-1">{gcpBilling.error}</div>
+                  <div className="text-sm text-muted-foreground mt-2">
                     To enable billing data:
                     <ol className="list-decimal list-inside mt-1 space-y-1">
-                      <li>Enable Cloud Billing API: <code className="bg-[var(--card-border)] px-1 rounded">gcloud services enable cloudbilling.googleapis.com</code></li>
-                      <li>Grant your service account the <code className="bg-[var(--card-border)] px-1 rounded">roles/billing.viewer</code> role</li>
+                      <li>Enable Cloud Billing API: <code className="bg-muted px-1 rounded">gcloud services enable cloudbilling.googleapis.com</code></li>
+                      <li>Grant your service account the <code className="bg-muted px-1 rounded">roles/billing.viewer</code> role</li>
                     </ol>
                   </div>
                 </div>
@@ -759,54 +759,54 @@ export default function CostsPage() {
             <div className="space-y-4">
               {/* Cost Overview */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
-                  <div className="text-sm text-[var(--text-muted)]">Current Month</div>
+                <div className="p-4 bg-[var(--background)] rounded-lg border border-border">
+                  <div className="text-sm text-muted-foreground">Current Month</div>
                   <div className="text-2xl font-bold mt-1 text-[var(--accent)]">
                     {gcpBilling.currentMonthCost !== null
                       ? `$${gcpBilling.currentMonthCost.toFixed(2)}`
                       : gcpBilling.bigQueryConfigured ? '$0.00' : '-'
                     }
                   </div>
-                  <div className="text-xs text-[var(--text-muted)]">
+                  <div className="text-xs text-muted-foreground">
                     {gcpBilling.bigQueryConfigured ? 'From billing export' : 'Configure BigQuery export'}
                   </div>
                 </div>
 
-                <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
-                  <div className="text-sm text-[var(--text-muted)]">Last 30 Days</div>
+                <div className="p-4 bg-[var(--background)] rounded-lg border border-border">
+                  <div className="text-sm text-muted-foreground">Last 30 Days</div>
                   <div className="text-2xl font-bold mt-1 text-[var(--accent-purple)]">
                     {gcpBilling.last30DaysCost !== null
                       ? `$${gcpBilling.last30DaysCost.toFixed(2)}`
                       : gcpBilling.bigQueryConfigured ? '$0.00' : '-'
                     }
                   </div>
-                  <div className="text-xs text-[var(--text-muted)]">
+                  <div className="text-xs text-muted-foreground">
                     {gcpBilling.costBreakdown.length} services
                   </div>
                 </div>
 
-                <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
-                  <div className="text-sm text-[var(--text-muted)]">Billing Account</div>
+                <div className="p-4 bg-[var(--background)] rounded-lg border border-border">
+                  <div className="text-sm text-muted-foreground">Billing Account</div>
                   <div className="text-lg font-semibold mt-1 truncate">
                     {gcpBilling.accountName || 'Not linked'}
                   </div>
                   {gcpBilling.billingEnabled ? (
-                    <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent-green)]/20 text-[var(--accent-green)]">
+                    <Badge className="rounded-full bg-[var(--accent-green)]/20 text-[var(--accent-green)] border-0">
                       Active
-                    </span>
+                    </Badge>
                   ) : (
-                    <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent-red)]/20 text-[var(--accent-red)]">
+                    <Badge className="rounded-full bg-[var(--accent-red)]/20 text-[var(--accent-red)] border-0">
                       Disabled
-                    </span>
+                    </Badge>
                   )}
                 </div>
 
-                <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
-                  <div className="text-sm text-[var(--text-muted)]">Budgets</div>
+                <div className="p-4 bg-[var(--background)] rounded-lg border border-border">
+                  <div className="text-sm text-muted-foreground">Budgets</div>
                   <div className="text-lg font-semibold mt-1">
                     {gcpBilling.budgets.length}
                   </div>
-                  <div className="text-xs text-[var(--text-muted)]">
+                  <div className="text-xs text-muted-foreground">
                     {gcpBilling.budgets.length > 0 ? 'Budget alerts active' : 'No budget alerts'}
                   </div>
                 </div>
@@ -815,44 +815,42 @@ export default function CostsPage() {
               {/* Cost Breakdown by Service */}
               {gcpBilling.costBreakdown.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold mb-2 text-[var(--text-muted)]">Cost by Service (Last 30 Days)</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-[var(--card-border)]">
-                          <th className="text-left py-2 px-3 font-medium text-[var(--text-muted)]">Service</th>
-                          <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Cost</th>
-                          <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">% of Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {gcpBilling.costBreakdown.map((item, i) => {
-                          const percentage = gcpBilling.last30DaysCost
-                            ? Math.round((item.cost / gcpBilling.last30DaysCost) * 100)
-                            : 0;
-                          return (
-                            <tr key={i} className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50">
-                              <td className="py-2 px-3">{item.service}</td>
-                              <td className="text-right py-2 px-3 tabular-nums font-medium">
-                                ${item.cost.toFixed(2)}
-                              </td>
-                              <td className="text-right py-2 px-3">
-                                <div className="flex items-center justify-end gap-2">
-                                  <div className="w-16 h-2 bg-[var(--card-border)] rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full rounded-full bg-[var(--accent)]"
-                                      style={{ width: `${percentage}%` }}
-                                    />
-                                  </div>
-                                  <span className="text-[var(--text-muted)] w-8 text-right">{percentage}%</span>
+                  <h3 className="text-sm font-semibold mb-2 text-muted-foreground">Cost by Service (Last 30 Days)</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="py-2 px-3">Service</TableHead>
+                        <TableHead className="text-right py-2 px-3">Cost</TableHead>
+                        <TableHead className="text-right py-2 px-3">% of Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {gcpBilling.costBreakdown.map((item, i) => {
+                        const percentage = gcpBilling.last30DaysCost
+                          ? Math.round((item.cost / gcpBilling.last30DaysCost) * 100)
+                          : 0;
+                        return (
+                          <TableRow key={i}>
+                            <TableCell className="py-2 px-3">{item.service}</TableCell>
+                            <TableCell className="text-right py-2 px-3 tabular-nums font-medium">
+                              ${item.cost.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right py-2 px-3">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-[var(--accent)]"
+                                    style={{ width: `${percentage}%` }}
+                                  />
                                 </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                                <span className="text-muted-foreground w-8 text-right">{percentage}%</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
 
@@ -860,15 +858,15 @@ export default function CostsPage() {
               {!gcpBilling.bigQueryConfigured && (
                 <div className="p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-lg">
                   <h3 className="font-medium text-[var(--accent)] mb-2">Enable Detailed Cost Tracking</h3>
-                  <p className="text-sm text-[var(--text-muted)] mb-3">
+                  <p className="text-sm text-muted-foreground mb-3">
                     To see actual GCP costs by service, set up BigQuery billing export:
                   </p>
-                  <ol className="text-sm text-[var(--text-muted)] list-decimal list-inside space-y-1 mb-3">
-                    <li>Go to <a href="https://console.cloud.google.com/billing/export" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">Billing → Billing export</a></li>
-                    <li>Enable "Detailed usage cost" export to BigQuery</li>
-                    <li>Note your dataset name (e.g., <code className="bg-[var(--card-border)] px-1 rounded">billing_export</code>)</li>
+                  <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1 mb-3">
+                    <li>Go to <a href="https://console.cloud.google.com/billing/export" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">Billing &rarr; Billing export</a></li>
+                    <li>Enable &quot;Detailed usage cost&quot; export to BigQuery</li>
+                    <li>Note your dataset name (e.g., <code className="bg-muted px-1 rounded">billing_export</code>)</li>
                     <li>Add these environment variables to Railway:
-                      <div className="mt-1 ml-4 font-mono text-xs bg-[var(--card-border)] p-2 rounded">
+                      <div className="mt-1 ml-4 font-mono text-xs bg-muted p-2 rounded">
                         GCP_BILLING_DATASET=billing_export<br/>
                         GCP_BILLING_TABLE=gcp_billing_export_v1_XXXXXX_XXXXXX_XXXXXX
                       </div>
@@ -880,7 +878,7 @@ export default function CostsPage() {
                     rel="noopener noreferrer"
                     className="text-sm text-[var(--accent)] hover:underline"
                   >
-                    View setup documentation →
+                    View setup documentation &rarr;
                   </a>
                 </div>
               )}
@@ -888,13 +886,13 @@ export default function CostsPage() {
               {/* Budgets */}
               {gcpBilling.budgets.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold mb-2 text-[var(--text-muted)]">Budgets</h3>
+                  <h3 className="text-sm font-semibold mb-2 text-muted-foreground">Budgets</h3>
                   <div className="space-y-2">
                     {gcpBilling.budgets.map((budget, i) => (
-                      <div key={i} className="p-3 bg-[var(--background)] rounded-lg border border-[var(--card-border)] flex items-center justify-between">
+                      <div key={i} className="p-3 bg-[var(--background)] rounded-lg border border-border flex items-center justify-between">
                         <div>
                           <div className="font-medium">{budget.displayName}</div>
-                          <div className="text-sm text-[var(--text-muted)]">
+                          <div className="text-sm text-muted-foreground">
                             {budget.budgetAmount.specifiedAmount
                               ? `${budget.budgetAmount.specifiedAmount.currencyCode} ${parseInt(budget.budgetAmount.specifiedAmount.units).toLocaleString()}`
                               : 'No limit set'
@@ -916,10 +914,10 @@ export default function CostsPage() {
               )}
 
               {/* Link to full billing console */}
-              <div className="p-4 bg-[var(--card-border)]/30 rounded-lg flex items-center justify-between">
+              <div className="p-4 bg-muted/30 rounded-lg flex items-center justify-between">
                 <div>
                   <div className="font-medium">Full Billing Details</div>
-                  <div className="text-sm text-[var(--text-muted)]">
+                  <div className="text-sm text-muted-foreground">
                     View detailed cost breakdown, invoices, and usage reports in GCP Console
                   </div>
                 </div>
@@ -927,98 +925,95 @@ export default function CostsPage() {
                   href={`https://console.cloud.google.com/billing?project=${dashboard?.gcp?.projectId}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 bg-[var(--accent)] text-white rounded-md hover:opacity-90 text-sm"
                 >
-                  Open GCP Billing
+                  <Button size="sm">Open GCP Billing</Button>
                 </a>
               </div>
             </div>
           ) : (
-            <div className="text-center py-8 text-[var(--text-muted)]">
+            <div className="text-center py-8 text-muted-foreground">
               <div>Loading billing data...</div>
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Daily Breakdown */}
-      <div className="card">
+      <Card className="p-4">
         <h2 className="text-lg font-semibold mb-4">Daily Activity</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--card-border)]">
-                <th className="text-left py-3 px-4 font-medium text-[var(--text-muted)]">Date</th>
-                {Object.entries(SERVICE_CONFIG).map(([key, { name }]) => (
-                  <th key={key} className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">
-                    {name}
-                  </th>
-                ))}
-                <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">Total</th>
-                <th className="text-right py-3 px-4 font-medium text-[var(--text-muted)]">Cache</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics?.daily?.map((day) => {
-                const dayTotal = Object.values(day.services).reduce(
-                  (sum, s) => sum + s.apiCalls,
-                  0
-                );
-                const cacheTotal = day.cache.hits + day.cache.misses;
-                const cacheRate = cacheTotal > 0
-                  ? Math.round((day.cache.hits / cacheTotal) * 100)
-                  : 0;
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="py-3 px-4">Date</TableHead>
+              {Object.entries(SERVICE_CONFIG).map(([key, { name }]) => (
+                <TableHead key={key} className="text-right py-3 px-4">
+                  {name}
+                </TableHead>
+              ))}
+              <TableHead className="text-right py-3 px-4">Total</TableHead>
+              <TableHead className="text-right py-3 px-4">Cache</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {metrics?.daily?.map((day) => {
+              const dayTotal = Object.values(day.services).reduce(
+                (sum, s) => sum + s.apiCalls,
+                0
+              );
+              const cacheTotal = day.cache.hits + day.cache.misses;
+              const cacheRate = cacheTotal > 0
+                ? Math.round((day.cache.hits / cacheTotal) * 100)
+                : 0;
 
-                return (
-                  <tr key={day.date} className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50">
-                    <td className="py-3 px-4 font-medium">{formatDate(day.date)}</td>
-                    {Object.keys(SERVICE_CONFIG).map((key) => (
-                      <td key={key} className="text-right py-3 px-4 tabular-nums">
-                        {day.services[key]?.apiCalls || 0}
-                      </td>
-                    ))}
-                    <td className="text-right py-3 px-4 tabular-nums font-medium">
-                      {dayTotal}
-                    </td>
-                    <td className="text-right py-3 px-4 tabular-nums text-[var(--text-muted)]">
-                      {cacheRate}%
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              return (
+                <TableRow key={day.date}>
+                  <TableCell className="py-3 px-4 font-medium">{formatDate(day.date)}</TableCell>
+                  {Object.keys(SERVICE_CONFIG).map((key) => (
+                    <TableCell key={key} className="text-right py-3 px-4 tabular-nums">
+                      {day.services[key]?.apiCalls || 0}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right py-3 px-4 tabular-nums font-medium">
+                    {dayTotal}
+                  </TableCell>
+                  <TableCell className="text-right py-3 px-4 tabular-nums text-muted-foreground">
+                    {cacheRate}%
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
 
       {/* Dashboard API Cache */}
-      <div className="card">
+      <Card className="p-4">
         <h2 className="text-lg font-semibold mb-2">Dashboard API Cache</h2>
-        <p className="text-sm text-[var(--text-muted)] mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Reduces external API calls by caching dashboard data locally in Redis
         </p>
 
         {/* Overview Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+          <div className="p-4 bg-[var(--background)] rounded-lg border border-border">
             <div className="text-2xl font-bold text-[var(--accent-green)]">
               {formatNumber(cacheStats.hits)}
             </div>
-            <div className="text-sm text-[var(--text-muted)]">Cache Hits</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">
+            <div className="text-sm text-muted-foreground">Cache Hits</div>
+            <div className="text-xs text-muted-foreground mt-1">
               Served from cache
             </div>
           </div>
-          <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+          <div className="p-4 bg-[var(--background)] rounded-lg border border-border">
             <div className="text-2xl font-bold text-[var(--accent-orange)]">
               {formatNumber(cacheStats.misses)}
             </div>
-            <div className="text-sm text-[var(--text-muted)]">Cache Misses</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">
+            <div className="text-sm text-muted-foreground">Cache Misses</div>
+            <div className="text-xs text-muted-foreground mt-1">
               Required API fetch
             </div>
           </div>
-          <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+          <div className="p-4 bg-[var(--background)] rounded-lg border border-border">
             <div className={`text-2xl font-bold ${
               (metrics?.summary?.cacheHitRate || 0) >= 80
                 ? 'text-[var(--accent-green)]'
@@ -1028,18 +1023,18 @@ export default function CostsPage() {
             }`}>
               {metrics?.summary?.cacheHitRate || 0}%
             </div>
-            <div className="text-sm text-[var(--text-muted)]">Hit Rate</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">
+            <div className="text-sm text-muted-foreground">Hit Rate</div>
+            <div className="text-xs text-muted-foreground mt-1">
               {(metrics?.summary?.cacheHitRate || 0) >= 80 ? 'Excellent' :
                (metrics?.summary?.cacheHitRate || 0) >= 50 ? 'Good' : 'Needs improvement'}
             </div>
           </div>
-          <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+          <div className="p-4 bg-[var(--background)] rounded-lg border border-border">
             <div className="text-2xl font-bold text-[var(--accent-purple)]">
               {formatNumber(cacheStats.savedCalls)}
             </div>
-            <div className="text-sm text-[var(--text-muted)]">API Calls Saved</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">
+            <div className="text-sm text-muted-foreground">API Calls Saved</div>
+            <div className="text-xs text-muted-foreground mt-1">
               ~{formatNumber(Math.round(cacheStats.savedCalls / days))}/day avg
             </div>
           </div>
@@ -1047,88 +1042,84 @@ export default function CostsPage() {
 
         {/* Cache Configuration */}
         <div className="mb-6">
-          <h3 className="text-sm font-semibold mb-3 text-[var(--text-muted)]">Cache Configuration</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--card-border)]">
-                  <th className="text-left py-2 px-3 font-medium text-[var(--text-muted)]">Cache Key</th>
-                  <th className="text-left py-2 px-3 font-medium text-[var(--text-muted)]">Description</th>
-                  <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">TTL</th>
-                  <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Today Hits</th>
-                  <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Today Misses</th>
-                  <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Hit Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metrics?.cacheDetails?.config && Object.entries(metrics.cacheDetails.config).map(([key, config]) => {
-                  const stats = metrics.cacheDetails?.keyStats[key] || { hits: 0, misses: 0, hitRate: 0 };
-                  return (
-                    <tr key={key} className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50">
-                      <td className="py-2 px-3 font-mono text-xs">{key}</td>
-                      <td className="py-2 px-3">{config.description}</td>
-                      <td className="text-right py-2 px-3 tabular-nums">{config.ttlSeconds}s</td>
-                      <td className="text-right py-2 px-3 tabular-nums text-[var(--accent-green)]">{stats.hits}</td>
-                      <td className="text-right py-2 px-3 tabular-nums text-[var(--accent-orange)]">{stats.misses}</td>
-                      <td className="text-right py-2 px-3">
-                        <span className={`font-medium ${
-                          stats.hitRate >= 80 ? 'text-[var(--accent-green)]' :
-                          stats.hitRate >= 50 ? 'text-[var(--accent-orange)]' :
-                          'text-[var(--accent-red)]'
-                        }`}>
-                          {stats.hitRate}%
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {(!metrics?.cacheDetails?.config || Object.keys(metrics.cacheDetails.config).length === 0) && (
-                  <tr>
-                    <td colSpan={6} className="py-4 text-center text-[var(--text-muted)]">
-                      No cache configuration data available
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Cache Configuration</h3>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="py-2 px-3">Cache Key</TableHead>
+                <TableHead className="py-2 px-3">Description</TableHead>
+                <TableHead className="text-right py-2 px-3">TTL</TableHead>
+                <TableHead className="text-right py-2 px-3">Today Hits</TableHead>
+                <TableHead className="text-right py-2 px-3">Today Misses</TableHead>
+                <TableHead className="text-right py-2 px-3">Hit Rate</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {metrics?.cacheDetails?.config && Object.entries(metrics.cacheDetails.config).map(([key, config]) => {
+                const stats = metrics.cacheDetails?.keyStats[key] || { hits: 0, misses: 0, hitRate: 0 };
+                return (
+                  <TableRow key={key}>
+                    <TableCell className="py-2 px-3 font-mono text-xs">{key}</TableCell>
+                    <TableCell className="py-2 px-3">{config.description}</TableCell>
+                    <TableCell className="text-right py-2 px-3 tabular-nums">{config.ttlSeconds}s</TableCell>
+                    <TableCell className="text-right py-2 px-3 tabular-nums text-[var(--accent-green)]">{stats.hits}</TableCell>
+                    <TableCell className="text-right py-2 px-3 tabular-nums text-[var(--accent-orange)]">{stats.misses}</TableCell>
+                    <TableCell className="text-right py-2 px-3">
+                      <span className={`font-medium ${
+                        stats.hitRate >= 80 ? 'text-[var(--accent-green)]' :
+                        stats.hitRate >= 50 ? 'text-[var(--accent-orange)]' :
+                        'text-[var(--accent-red)]'
+                      }`}>
+                        {stats.hitRate}%
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {(!metrics?.cacheDetails?.config || Object.keys(metrics.cacheDetails.config).length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-4 text-center text-muted-foreground">
+                    No cache configuration data available
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
 
         {/* Active Cache Keys */}
         {metrics?.cacheDetails?.activeCacheKeys && metrics.cacheDetails.activeCacheKeys.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-sm font-semibold mb-3 text-[var(--text-muted)]">Active Cache Entries</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--card-border)]">
-                    <th className="text-left py-2 px-3 font-medium text-[var(--text-muted)]">Key</th>
-                    <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Size</th>
-                    <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">TTL Remaining</th>
-                    <th className="text-right py-2 px-3 font-medium text-[var(--text-muted)]">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {metrics.cacheDetails.activeCacheKeys.map((cacheKey) => (
-                    <tr key={cacheKey.key} className="border-b border-[var(--card-border)] hover:bg-[var(--card-border)]/50">
-                      <td className="py-2 px-3 font-mono text-xs">{cacheKey.key}</td>
-                      <td className="text-right py-2 px-3 tabular-nums">{formatBytes(cacheKey.size)}</td>
-                      <td className="text-right py-2 px-3 tabular-nums">{formatTTL(cacheKey.ttl)}</td>
-                      <td className="text-right py-2 px-3">
-                        {cacheKey.ttl > 10 ? (
-                          <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent-green)]/20 text-[var(--accent-green)]">Active</span>
-                        ) : cacheKey.ttl > 0 ? (
-                          <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent-orange)]/20 text-[var(--accent-orange)]">Expiring</span>
-                        ) : (
-                          <span className="text-xs px-2 py-0.5 rounded bg-[var(--accent-red)]/20 text-[var(--accent-red)]">Expired</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-2 text-xs text-[var(--text-muted)]">
+            <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Active Cache Entries</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="py-2 px-3">Key</TableHead>
+                  <TableHead className="text-right py-2 px-3">Size</TableHead>
+                  <TableHead className="text-right py-2 px-3">TTL Remaining</TableHead>
+                  <TableHead className="text-right py-2 px-3">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {metrics.cacheDetails.activeCacheKeys.map((cacheKey) => (
+                  <TableRow key={cacheKey.key}>
+                    <TableCell className="py-2 px-3 font-mono text-xs">{cacheKey.key}</TableCell>
+                    <TableCell className="text-right py-2 px-3 tabular-nums">{formatBytes(cacheKey.size)}</TableCell>
+                    <TableCell className="text-right py-2 px-3 tabular-nums">{formatTTL(cacheKey.ttl)}</TableCell>
+                    <TableCell className="text-right py-2 px-3">
+                      {cacheKey.ttl > 10 ? (
+                        <Badge className="rounded-full bg-[var(--accent-green)]/20 text-[var(--accent-green)] border-0">Active</Badge>
+                      ) : cacheKey.ttl > 0 ? (
+                        <Badge className="rounded-full bg-[var(--accent-orange)]/20 text-[var(--accent-orange)] border-0">Expiring</Badge>
+                      ) : (
+                        <Badge className="rounded-full bg-[var(--accent-red)]/20 text-[var(--accent-red)] border-0">Expired</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="mt-2 text-xs text-muted-foreground">
               Total cached: {formatBytes(metrics.cacheDetails.activeCacheKeys.reduce((sum, k) => sum + k.size, 0))}
             </div>
           </div>
@@ -1136,7 +1127,7 @@ export default function CostsPage() {
 
         {/* Recommendations */}
         {metrics?.cacheDetails?.recommendations && metrics.cacheDetails.recommendations.length > 0 && (
-          <div className="p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+          <div className="p-4 bg-[var(--background)] rounded-lg border border-border">
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
               <svg className="w-4 h-4 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -1155,9 +1146,9 @@ export default function CostsPage() {
         )}
 
         {/* How Cache Works */}
-        <div className="mt-6 p-4 bg-[var(--card-border)]/30 rounded-lg">
+        <div className="mt-6 p-4 bg-muted/30 rounded-lg">
           <h3 className="text-sm font-semibold mb-2">How Caching Works</h3>
-          <div className="text-sm text-[var(--text-muted)] space-y-2">
+          <div className="text-sm text-muted-foreground space-y-2">
             <p>
               <strong>Cache Hit:</strong> Data served from Redis cache (fast, no external API call)
             </p>
@@ -1167,7 +1158,7 @@ export default function CostsPage() {
             <p>
               <strong>TTL (Time To Live):</strong> How long data stays in cache before expiring
             </p>
-            <div className="mt-3 pt-3 border-t border-[var(--card-border)]">
+            <div className="mt-3 pt-3 border-t border-border">
               <strong className="text-[var(--foreground)]">Tips to improve cache performance:</strong>
               <ul className="mt-2 space-y-1 list-disc list-inside">
                 <li>Avoid refreshing the page more often than the cache TTL ({metrics?.cacheDetails?.config?.['dashboard:data']?.ttlSeconds || 30}s)</li>
@@ -1178,7 +1169,7 @@ export default function CostsPage() {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

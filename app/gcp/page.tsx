@@ -2,6 +2,14 @@
 
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, ChevronDown } from 'lucide-react';
 
 interface GCPCloudRunService {
   name: string;
@@ -104,7 +112,7 @@ function getStatusColor(status: string): string {
   if (s === 'PENDING' || s === 'STAGING' || s === 'DEPLOYING' || s === 'BUILDING') {
     return 'text-[var(--accent-orange)]';
   }
-  return 'text-[var(--text-muted)]';
+  return 'text-muted-foreground';
 }
 
 function getStatusBgColor(status: string): string {
@@ -118,7 +126,7 @@ function getStatusBgColor(status: string): string {
   if (s === 'PENDING' || s === 'STAGING' || s === 'DEPLOYING' || s === 'BUILDING') {
     return 'bg-[var(--accent-orange)]';
   }
-  return 'bg-[var(--text-muted)]';
+  return 'bg-muted-foreground';
 }
 
 function GCPLogo({ className }: { className?: string }) {
@@ -237,9 +245,9 @@ export default function GCPPage() {
           <GCPLogo className="w-7 h-7" />
           Google Cloud Platform
         </h1>
-        <div className="card text-center py-12">
+        <Card className="p-4 text-center py-12">
           <p className="text-[var(--accent-red)]">Failed to load GCP data</p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -253,10 +261,10 @@ export default function GCPPage() {
         </h1>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="card animate-pulse">
-              <div className="h-8 bg-[var(--card-border)] rounded mb-2" />
-              <div className="h-4 w-16 bg-[var(--card-border)] rounded" />
-            </div>
+            <Card key={i} className="p-4">
+              <Skeleton className="h-8 rounded mb-2" />
+              <Skeleton className="h-4 w-16 rounded" />
+            </Card>
           ))}
         </div>
       </div>
@@ -270,22 +278,22 @@ export default function GCPPage() {
           <GCPLogo className="w-7 h-7" />
           Google Cloud Platform
         </h1>
-        <div className="card text-center py-12">
-          <GCPLogo className="w-16 h-16 mx-auto mb-4 text-[var(--text-muted)]" />
+        <Card className="p-4 text-center py-12">
+          <GCPLogo className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-semibold mb-2">GCP Credentials Required</h2>
-          <p className="text-[var(--text-muted)] mb-4">Connect your GCP project to see resources</p>
-          <p className="text-sm text-[var(--text-muted)]">
+          <p className="text-muted-foreground mb-4">Connect your GCP project to see resources</p>
+          <p className="text-sm text-muted-foreground">
             Add <code className="bg-[var(--card-border)] px-1 rounded">GCP_PROJECT_ID</code> and{' '}
             <code className="bg-[var(--card-border)] px-1 rounded">GCP_SERVICE_ACCOUNT_KEY</code> to{' '}
             <code className="bg-[var(--card-border)] px-1 rounded">.env.local</code>
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-2">
+          <p className="text-xs text-muted-foreground mt-2">
             Create a service account at{' '}
             <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">
               console.cloud.google.com
             </a>
           </p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -312,102 +320,89 @@ export default function GCPPage() {
 
       {/* Project ID */}
       {gcp?.projectId && (
-        <div className="text-sm text-[var(--text-muted)]">
+        <div className="text-sm text-muted-foreground">
           Project: <span className="text-[var(--foreground)]">{gcp.projectId}</span>
         </div>
       )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        <div className="card text-center">
+        <Card className="p-4 text-center">
           <div className="text-3xl font-bold text-[var(--accent)]">{stats.cloudRun}</div>
-          <div className="text-sm text-[var(--text-muted)]">Cloud Run</div>
-        </div>
-        <div className="card text-center">
+          <div className="text-sm text-muted-foreground">Cloud Run</div>
+        </Card>
+        <Card className="p-4 text-center">
           <div className="text-3xl font-bold text-[var(--accent-orange)]">{stats.functions}</div>
-          <div className="text-sm text-[var(--text-muted)]">Functions</div>
-        </div>
-        <div className="card text-center">
+          <div className="text-sm text-muted-foreground">Functions</div>
+        </Card>
+        <Card className="p-4 text-center">
           <div className="text-3xl font-bold">{stats.compute}</div>
-          <div className="text-sm text-[var(--text-muted)]">VMs</div>
-        </div>
-        <div className="card text-center">
+          <div className="text-sm text-muted-foreground">VMs</div>
+        </Card>
+        <Card className="p-4 text-center">
           <div className="text-3xl font-bold text-[var(--accent-green)]">{stats.runningVMs}</div>
-          <div className="text-sm text-[var(--text-muted)]">Running</div>
-        </div>
-        <div className="card text-center">
+          <div className="text-sm text-muted-foreground">Running</div>
+        </Card>
+        <Card className="p-4 text-center">
           <div className="text-3xl font-bold text-[var(--accent-purple)]">{stats.storage}</div>
-          <div className="text-sm text-[var(--text-muted)]">Buckets</div>
-        </div>
-        <div className="card text-center">
+          <div className="text-sm text-muted-foreground">Buckets</div>
+        </Card>
+        <Card className="p-4 text-center">
           <div className="text-3xl font-bold text-[var(--accent-green)]">{stats.activeFunctions}</div>
-          <div className="text-sm text-[var(--text-muted)]">Active Fn</div>
-        </div>
-        <div className="card text-center">
+          <div className="text-sm text-muted-foreground">Active Fn</div>
+        </Card>
+        <Card className="p-4 text-center">
           <div className="text-3xl font-bold text-[var(--accent)]">{stats.enabledServices}</div>
-          <div className="text-sm text-[var(--text-muted)]">APIs</div>
-        </div>
+          <div className="text-sm text-muted-foreground">APIs</div>
+        </Card>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-[var(--card-border)]">
-        {[
-          { id: 'cloudrun' as const, label: 'Cloud Run', count: stats.cloudRun },
-          { id: 'functions' as const, label: 'Functions', count: stats.functions },
-          { id: 'compute' as const, label: 'Compute', count: stats.compute },
-          { id: 'storage' as const, label: 'Storage', count: stats.storage },
-          { id: 'services' as const, label: 'APIs & Services', count: stats.enabledServices },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === tab.id
-                ? 'border-[var(--accent)] text-[var(--accent)]'
-                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
-            }`}
-          >
-            {tab.label} ({tab.count})
-          </button>
-        ))}
-      </div>
+      <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value as TabType); setStatusFilter('all'); }}>
+        <TabsList>
+          <TabsTrigger value="cloudrun">Cloud Run ({stats.cloudRun})</TabsTrigger>
+          <TabsTrigger value="functions">Functions ({stats.functions})</TabsTrigger>
+          <TabsTrigger value="compute">Compute ({stats.compute})</TabsTrigger>
+          <TabsTrigger value="storage">Storage ({stats.storage})</TabsTrigger>
+          <TabsTrigger value="services">APIs & Services ({stats.enabledServices})</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Search and Filters */}
       <div className="flex gap-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
             type="text"
             placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
+            className="pl-10"
           />
         </div>
 
         {activeTab !== 'storage' && (
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
-          >
-            <option value="all">All Status</option>
-            <option value="healthy">Healthy</option>
-            <option value="unhealthy">Unhealthy</option>
-            <option value="pending">Pending</option>
-          </select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-auto min-w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="healthy">Healthy</SelectItem>
+              <SelectItem value="unhealthy">Unhealthy</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+            </SelectContent>
+          </Select>
         )}
       </div>
 
       {/* Content */}
       <div className="space-y-3">
         {filteredItems.length === 0 ? (
-          <div className="card text-center py-12">
-            <GCPLogo className="w-12 h-12 mx-auto mb-3 text-[var(--text-muted)]" />
-            <p className="text-[var(--text-muted)]">No {activeTab} resources found</p>
-          </div>
+          <Card className="p-4 text-center py-12">
+            <GCPLogo className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+            <p className="text-muted-foreground">No {activeTab} resources found</p>
+          </Card>
         ) : (
           <>
             {/* Cloud Run Services */}
@@ -419,7 +414,7 @@ export default function GCPPage() {
               const hasConditions = service.conditions && service.conditions.length > 1;
 
               return (
-                <div key={service.uid} className="card !p-4">
+                <Card key={service.uid} className="p-4">
                   <div className="flex items-start gap-4">
                     <div className={`w-3 h-3 rounded-full mt-1.5 ${getStatusBgColor(status)}`} />
                     <div className="flex-1 min-w-0">
@@ -440,13 +435,11 @@ export default function GCPPage() {
                             className="text-xs px-2 py-0.5 rounded bg-[var(--card-border)] hover:bg-[var(--accent)]/20 flex items-center gap-1"
                           >
                             {service.conditions?.length} condition{service.conditions?.length !== 1 ? 's' : ''}
-                            <svg className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
+                            <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </button>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-muted)]">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         {service.uri && (
                           <a href={service.uri} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline truncate max-w-xs">
                             {service.uri.replace('https://', '')}
@@ -460,7 +453,7 @@ export default function GCPPage() {
                         <div className="mt-3 space-y-2">
                           <h4 className="text-sm font-medium">Service Conditions</h4>
                           {service.conditions.map((condition, i) => (
-                            <div key={i} className="text-sm p-2 rounded bg-[var(--background)] border border-[var(--card-border)] flex items-center justify-between">
+                            <div key={i} className="text-sm p-2 rounded bg-[var(--background)] border border-border flex items-center justify-between">
                               <span className="font-medium">{condition.type}</span>
                               <span className={`text-xs px-2 py-0.5 rounded font-medium ${getStatusColor(condition.state)}`}>
                                 {condition.state}
@@ -470,16 +463,17 @@ export default function GCPPage() {
                         </div>
                       )}
                     </div>
-                    <a
-                      href={`https://console.cloud.google.com/run/detail/${service.name.split('/')[3]}/${name}?project=${gcp?.projectId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 text-sm border border-[var(--card-border)] rounded-md hover:bg-[var(--card-border)]"
-                    >
-                      View
-                    </a>
+                    <Button variant="outline" size="sm" asChild>
+                      <a
+                        href={`https://console.cloud.google.com/run/detail/${service.name.split('/')[3]}/${name}?project=${gcp?.projectId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View
+                      </a>
+                    </Button>
                   </div>
-                </div>
+                </Card>
               );
             })}
 
@@ -489,7 +483,7 @@ export default function GCPPage() {
               const location = fn.name.split('/')[3];
 
               return (
-                <div key={fn.name} className="card !p-4">
+                <Card key={fn.name} className="p-4">
                   <div className="flex items-start gap-4">
                     <div className={`w-3 h-3 rounded-full mt-1.5 ${getStatusBgColor(fn.state)}`} />
                     <div className="flex-1 min-w-0">
@@ -497,10 +491,10 @@ export default function GCPPage() {
                         <h3 className="font-semibold">{name}</h3>
                         <span className={`text-sm ${getStatusColor(fn.state)}`}>{fn.state}</span>
                         {fn.buildConfig?.runtime && (
-                          <span className="text-xs px-2 py-0.5 bg-[var(--card-border)] rounded">{fn.buildConfig.runtime}</span>
+                          <Badge variant="outline" className="rounded-full text-xs">{fn.buildConfig.runtime}</Badge>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-muted)]">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <span>Region: {location}</span>
                         {fn.serviceConfig?.uri && (
                           <a href={fn.serviceConfig.uri} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline truncate max-w-xs">
@@ -510,16 +504,17 @@ export default function GCPPage() {
                         <span>Updated: {timeAgo(fn.updateTime)}</span>
                       </div>
                     </div>
-                    <a
-                      href={`https://console.cloud.google.com/functions/details/${location}/${name}?project=${gcp?.projectId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 text-sm border border-[var(--card-border)] rounded-md hover:bg-[var(--card-border)]"
-                    >
-                      View
-                    </a>
+                    <Button variant="outline" size="sm" asChild>
+                      <a
+                        href={`https://console.cloud.google.com/functions/details/${location}/${name}?project=${gcp?.projectId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View
+                      </a>
+                    </Button>
                   </div>
-                </div>
+                </Card>
               );
             })}
 
@@ -531,81 +526,83 @@ export default function GCPPage() {
               const internalIP = vm.networkInterfaces?.[0]?.networkIP;
 
               return (
-                <div key={vm.id} className="card !p-4">
+                <Card key={vm.id} className="p-4">
                   <div className="flex items-start gap-4">
                     <div className={`w-3 h-3 rounded-full mt-1.5 ${getStatusBgColor(vm.status)}`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-1">
                         <h3 className="font-semibold">{vm.name}</h3>
                         <span className={`text-sm ${getStatusColor(vm.status)}`}>{vm.status}</span>
-                        <span className="text-xs px-2 py-0.5 bg-[var(--card-border)] rounded">{machineType}</span>
+                        <Badge variant="outline" className="rounded-full text-xs">{machineType}</Badge>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-muted)]">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <span>Zone: {zone}</span>
                         {internalIP && <span>Internal: {internalIP}</span>}
                         {externalIP && <span>External: {externalIP}</span>}
                       </div>
                     </div>
-                    <a
-                      href={`https://console.cloud.google.com/compute/instancesDetail/zones/${zone}/instances/${vm.name}?project=${gcp?.projectId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 text-sm border border-[var(--card-border)] rounded-md hover:bg-[var(--card-border)]"
-                    >
-                      View
-                    </a>
+                    <Button variant="outline" size="sm" asChild>
+                      <a
+                        href={`https://console.cloud.google.com/compute/instancesDetail/zones/${zone}/instances/${vm.name}?project=${gcp?.projectId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View
+                      </a>
+                    </Button>
                   </div>
-                </div>
+                </Card>
               );
             })}
 
             {/* Storage Buckets */}
             {activeTab === 'storage' && (filteredItems as GCPStorageBucket[]).map((bucket) => (
-              <div key={bucket.name} className="card !p-4">
+              <Card key={bucket.name} className="p-4">
                 <div className="flex items-start gap-4">
                   <div className="w-3 h-3 rounded-full mt-1.5 bg-[var(--accent-purple)]" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
                       <h3 className="font-semibold">{bucket.name}</h3>
-                      <span className="text-xs px-2 py-0.5 bg-[var(--card-border)] rounded">{bucket.storageClass}</span>
+                      <Badge variant="outline" className="rounded-full text-xs">{bucket.storageClass}</Badge>
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-muted)]">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                       <span>Location: {bucket.location}</span>
                       <span>Created: {timeAgo(bucket.timeCreated)}</span>
                     </div>
                   </div>
-                  <a
-                    href={`https://console.cloud.google.com/storage/browser/${bucket.name}?project=${gcp?.projectId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 text-sm border border-[var(--card-border)] rounded-md hover:bg-[var(--card-border)]"
-                  >
-                    View
-                  </a>
+                  <Button variant="outline" size="sm" asChild>
+                    <a
+                      href={`https://console.cloud.google.com/storage/browser/${bucket.name}?project=${gcp?.projectId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View
+                    </a>
+                  </Button>
                 </div>
-              </div>
+              </Card>
             ))}
 
             {/* Enabled APIs & Services */}
             {activeTab === 'services' && (filteredItems as GCPEnabledService[]).map((service) => (
-              <div key={service.name} className="card !p-4">
+              <Card key={service.name} className="p-4">
                 <div className="flex items-start gap-4">
                   <div className="w-3 h-3 rounded-full mt-1.5 bg-[var(--accent-green)]" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
                       <h3 className="font-semibold">{service.title}</h3>
-                      <span className="text-xs px-2 py-0.5 bg-[var(--accent-green)] text-white rounded">{service.state}</span>
+                      <Badge className="rounded-full text-xs bg-[var(--accent-green)] text-white">{service.state}</Badge>
                       {service.usage && service.usage.requestCount > 0 && (
-                        <span className="text-xs px-2 py-0.5 bg-[var(--accent)] text-white rounded">
+                        <Badge className="rounded-full text-xs bg-[var(--accent)] text-white">
                           {service.usage.requestCount.toLocaleString()} requests
-                        </span>
+                        </Badge>
                       )}
                     </div>
-                    <div className="text-sm text-[var(--text-muted)] mb-2">
+                    <div className="text-sm text-muted-foreground mb-2">
                       {service.name}
                     </div>
                     {service.usage && (
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
@@ -632,16 +629,17 @@ export default function GCPPage() {
                       </div>
                     )}
                   </div>
-                  <a
-                    href={`https://console.cloud.google.com/apis/library/${service.name.split('/').pop()}?project=${gcp?.projectId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 text-sm border border-[var(--card-border)] rounded-md hover:bg-[var(--card-border)]"
-                  >
-                    View
-                  </a>
+                  <Button variant="outline" size="sm" asChild>
+                    <a
+                      href={`https://console.cloud.google.com/apis/library/${service.name.split('/').pop()}?project=${gcp?.projectId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View
+                    </a>
+                  </Button>
                 </div>
-              </div>
+              </Card>
             ))}
           </>
         )}

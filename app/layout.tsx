@@ -18,7 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen">
         <Providers>
-          <header className="border-b border-[var(--card-border)] bg-[var(--card-bg)] sticky top-0 z-40">
+          <header className="border-b border-border bg-card sticky top-0 z-40">
             <div className="max-w-7xl mx-auto px-4 py-3 lg:py-4 flex items-center justify-between relative">
               <div className="flex items-center gap-2 lg:gap-6">
                 <div className="flex items-center gap-2 lg:gap-3">

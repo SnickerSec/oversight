@@ -2,36 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #0d1117;
-  --foreground: #c9d1d9;
-  --card-bg: #161b22;
-  --card-border: #30363d;
-  --accent: #58a6ff;
-  --accent-green: #3fb950;
-  --accent-purple: #a371f7;
-  --accent-orange: #d29922;
-  --accent-red: #f85149;
-  --text-muted: #8b949e;
+@layer base {
+  :root {
+    --background: #0d1117;
+    --foreground: #c9d1d9;
+    --card-bg: #161b22;
+    --card-border: #30363d;
+    --accent: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-purple: #a371f7;
+    --accent-orange: #d29922;
+    --accent-red: #f85149;
+    --text-muted: #8b949e;
+    --radius: 0.5rem;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+  }
+
+  * {
+    border-color: var(--card-border);
+  }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
-}
-
-.card {
-  @apply bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg p-4;
-}
-
-.badge {
-  @apply px-2 py-0.5 rounded-full text-xs font-medium;
-}
-
-.link {
-  @apply text-[var(--accent)] hover:underline;
-}
 
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }

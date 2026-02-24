@@ -2,10 +2,25 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import useSWR from 'swr';
+import { Menu } from 'lucide-react';
 import { RepoWithDetails, getRecentCommits } from '@/lib/github';
 import { timeAgo } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -21,29 +36,16 @@ async function fetchDashboardData(): Promise<DashboardData> {
 }
 
 export default function Nav() {
-  const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
   const { data } = useSWR<DashboardData>('dashboard', fetchDashboardData);
   const commits = data?.repos ? getRecentCommits(data.repos, 10) : [];
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   return (
-    <>
-      <div className="relative" ref={dropdownRef}>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="relative p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-border)] transition-colors"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative text-[var(--text-muted)] hover:text-[var(--foreground)]"
           title="Recent Activity"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
@@ -52,67 +54,63 @@ export default function Nav() {
           {commits.length > 0 && (
             <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--accent)] rounded-full" />
           )}
-        </button>
+        </Button>
+      </DropdownMenuTrigger>
 
-        {isOpen && (
-          <div className="absolute right-0 mt-2 w-80 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-lg z-50 overflow-hidden">
-            <div className="px-4 py-3 border-b border-[var(--card-border)]">
-              <h3 className="font-semibold text-sm">Recent Activity</h3>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="px-4 py-3 border-b border-border">
+          <h3 className="font-semibold text-sm">Recent Activity</h3>
+        </div>
+        <div className="max-h-96 overflow-y-auto">
+          {commits.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No recent commits
             </div>
-            <div className="max-h-96 overflow-y-auto">
-              {commits.length === 0 ? (
-                <div className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">
-                  No recent commits
-                </div>
-              ) : (
-                <div className="divide-y divide-[var(--card-border)]">
-                  {commits.map((commit) => (
-                    <a
-                      key={commit.sha}
-                      href={commit.html_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex gap-3 px-4 py-3 hover:bg-[var(--card-border)] transition-colors"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[var(--card-border)] overflow-hidden">
-                        {commit.author?.avatar_url ? (
-                          <img
-                            src={commit.author.avatar_url}
-                            alt={commit.author.login}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xs">
-                            {commit.commit.author.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+          ) : (
+            <div className="divide-y divide-border">
+              {commits.map((commit) => (
+                <a
+                  key={commit.sha}
+                  href={commit.html_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex gap-3 px-4 py-3 hover:bg-[var(--card-border)] transition-colors"
+                >
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[var(--card-border)] overflow-hidden">
+                    {commit.author?.avatar_url ? (
+                      <img
+                        src={commit.author.avatar_url}
+                        alt={commit.author.login}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs">
+                        {commit.commit.author.name.charAt(0).toUpperCase()}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm truncate">
-                          {commit.commit.message.split('\n')[0]}
-                        </div>
-                        <div className="text-xs text-[var(--text-muted)] flex items-center gap-2">
-                          <span className="text-[var(--accent)]">{commit.repoName}</span>
-                          <span>{timeAgo(commit.commit.author.date)}</span>
-                        </div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              )}
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm truncate">
+                      {commit.commit.message.split('\n')[0]}
+                    </div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                      <span className="text-[var(--accent)]">{commit.repoName}</span>
+                      <span>{timeAgo(commit.commit.author.date)}</span>
+                    </div>
+                  </div>
+                </a>
+              ))}
             </div>
-          </div>
-        )}
-      </div>
-    </>
+          )}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
 export function NavLinks() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   const { data } = useSWR<DashboardData>('/api/github-nav', fetchDashboardData, {
     refreshInterval: 60000,
@@ -120,21 +118,6 @@ export function NavLinks() {
     revalidateIfStale: true,
     revalidateOnMount: true,
   });
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMobileMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Close menu on route change
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
 
   // Calculate total security alerts
   const totalAlerts = data?.repos ? data.repos.reduce((total, repo) => {
@@ -157,23 +140,50 @@ export function NavLinks() {
   ];
 
   return (
-    <div ref={menuRef}>
-      {/* Mobile hamburger button */}
-      <button
-        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        className="lg:hidden p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-border)] transition-colors"
-        aria-label="Toggle menu"
-      >
-        {mobileMenuOpen ? (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ) : (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        )}
-      </button>
+    <>
+      {/* Mobile hamburger - Sheet */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden text-[var(--text-muted)] hover:text-[var(--foreground)]"
+            aria-label="Toggle menu"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-64 bg-[var(--background)]">
+          <SheetHeader>
+            <SheetTitle>Navigation</SheetTitle>
+          </SheetHeader>
+          <nav className="flex flex-col gap-1 mt-4">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`px-4 py-3 rounded-md text-sm font-medium transition-colors flex items-center justify-between ${
+                  pathname === link.href
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-border)]'
+                }`}
+              >
+                {link.label}
+                {link.badge !== undefined && (
+                  <Badge className={`rounded-full ${
+                    pathname === link.href
+                      ? 'bg-white text-[var(--accent)]'
+                      : 'bg-[var(--accent-red)] text-white'
+                  }`}>
+                    {link.badge}
+                  </Badge>
+                )}
+              </Link>
+            ))}
+          </nav>
+        </SheetContent>
+      </Sheet>
 
       {/* Desktop nav */}
       <nav className="hidden lg:flex items-center gap-1">
@@ -189,47 +199,17 @@ export function NavLinks() {
           >
             {link.label}
             {link.badge !== undefined && (
-              <span className={`ml-1.5 px-1.5 py-0.5 text-xs font-semibold rounded ${
+              <Badge className={`ml-1.5 rounded-full ${
                 pathname === link.href
                   ? 'bg-white text-[var(--accent)]'
                   : 'bg-[var(--accent-red)] text-white'
               }`}>
                 {link.badge}
-              </span>
+              </Badge>
             )}
           </Link>
         ))}
       </nav>
-
-      {/* Mobile nav dropdown */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden absolute left-0 right-0 top-full mt-1 mx-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-lg z-50 overflow-hidden">
-          <nav className="flex flex-col p-2">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`px-4 py-3 rounded-md text-sm font-medium transition-colors flex items-center justify-between ${
-                  pathname === link.href
-                    ? 'bg-[var(--accent)] text-white'
-                    : 'text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-border)]'
-                }`}
-              >
-                {link.label}
-                {link.badge !== undefined && (
-                  <span className={`px-2 py-0.5 text-xs font-semibold rounded ${
-                    pathname === link.href
-                      ? 'bg-white text-[var(--accent)]'
-                      : 'bg-[var(--accent-red)] text-white'
-                  }`}>
-                    {link.badge}
-                  </span>
-                )}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      )}
-    </div>
+    </>
   );
 }

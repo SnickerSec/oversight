@@ -1,19 +1,12 @@
 'use client';
 
 import { Issue, RepoWithDetails } from '@/lib/github';
+import { timeAgo } from '@/lib/utils';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 interface IssuesListProps {
   repos: RepoWithDetails[];
-}
-
-function timeAgo(date: string): string {
-  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return new Date(date).toLocaleDateString();
 }
 
 export default function IssuesList({ repos }: IssuesListProps) {
@@ -22,7 +15,7 @@ export default function IssuesList({ repos }: IssuesListProps) {
   ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return (
-    <div className="card">
+    <Card className="p-4">
       <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
         <svg className="w-5 h-5 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
           <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/>
@@ -30,14 +23,14 @@ export default function IssuesList({ repos }: IssuesListProps) {
         </svg>
         Open Issues
         {allIssues.length > 0 && (
-          <span className="badge bg-[var(--accent-green)] text-black">
+          <Badge className="rounded-full bg-[var(--accent-green)] text-black">
             {allIssues.length}
-          </span>
+          </Badge>
         )}
       </h2>
 
       {allIssues.length === 0 ? (
-        <p className="text-[var(--text-muted)]">No open issues</p>
+        <p className="text-muted-foreground">No open issues</p>
       ) : (
         <div className="space-y-3">
           {allIssues.slice(0, 10).map((issue) => (
@@ -55,7 +48,7 @@ export default function IssuesList({ repos }: IssuesListProps) {
                 >
                   {issue.title}
                 </a>
-                <div className="text-xs text-[var(--text-muted)] flex items-center gap-2 flex-wrap">
+                <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                   <span className="text-[var(--accent)]">{(issue as Issue & { repoName: string }).repoName}</span>
                   <span>#{issue.number}</span>
                   <span>{timeAgo(issue.created_at)}</span>
@@ -63,17 +56,18 @@ export default function IssuesList({ repos }: IssuesListProps) {
                 {issue.labels.length > 0 && (
                   <div className="flex gap-1 mt-1 flex-wrap">
                     {issue.labels.map(label => (
-                      <span
+                      <Badge
                         key={label.name}
-                        className="badge text-xs"
+                        variant="outline"
+                        className="rounded-full text-xs px-2 py-0"
                         style={{
                           backgroundColor: `#${label.color}20`,
                           color: `#${label.color}`,
-                          border: `1px solid #${label.color}40`,
+                          borderColor: `#${label.color}40`,
                         }}
                       >
                         {label.name}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 )}
@@ -82,6 +76,6 @@ export default function IssuesList({ repos }: IssuesListProps) {
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { RepoWithDetails } from '@/lib/github';
+import { Card } from '@/components/ui/card';
 
 interface StatsOverviewProps {
   repos: RepoWithDetails[];
@@ -12,12 +13,10 @@ export default function StatsOverview({ repos }: StatsOverviewProps) {
   const totalIssues = repos.reduce((sum, repo) => sum + repo.issues.length, 0);
   const totalPRs = repos.reduce((sum, repo) => sum + repo.pullRequests.length, 0);
 
-  // Security alert stats
   const allDependabot = repos.flatMap(repo => repo.securityAlerts?.dependabot || []);
   const allCodeScanning = repos.flatMap(repo => repo.securityAlerts?.codeScanning || []);
   const allSecretScanning = repos.flatMap(repo => repo.securityAlerts?.secretScanning || []);
 
-  // Security stats
   const reposWithSecurityPolicy = repos.filter(r => r.security?.hasSecurityPolicy).length;
   const reposWithLicense = repos.filter(r => r.security?.hasLicense).length;
   const reposWithCodeOfConduct = repos.filter(r => r.security?.hasCodeOfConduct).length;
@@ -25,12 +24,10 @@ export default function StatsOverview({ repos }: StatsOverviewProps) {
     ? Math.round(repos.reduce((sum, r) => sum + (r.security?.healthPercentage || 0), 0) / repos.length)
     : 0;
 
-  // Railway stats
   const reposWithRailway = repos.filter(r => r.railway).length;
   const railwayLive = repos.filter(r => r.railway?.deploymentStatus?.toUpperCase() === 'SUCCESS').length;
   const railwayFailed = repos.filter(r => ['FAILED', 'CRASHED'].includes(r.railway?.deploymentStatus?.toUpperCase() || '')).length;
 
-  // Supabase stats
   const reposWithSupabase = repos.filter(r => r.supabase).length;
   const supabaseHealthy = repos.filter(r => r.supabase?.status?.toUpperCase() === 'ACTIVE_HEALTHY').length;
   const supabaseIssues = repos.filter(r => ['INIT_FAILED', 'REMOVED'].includes(r.supabase?.status?.toUpperCase() || '')).length;
@@ -199,13 +196,13 @@ export default function StatsOverview({ repos }: StatsOverviewProps) {
   return (
     <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-2">
       {allStats.map((stat) => (
-        <div key={stat.label} className="card !p-2 text-center">
+        <Card key={stat.label} className="p-2 text-center">
           <div className={`flex justify-center mb-1 ${stat.color} [&>svg]:w-4 [&>svg]:h-4`}>
             {stat.icon}
           </div>
           <div className="text-lg font-bold">{stat.value}</div>
-          <div className="text-[10px] text-[var(--text-muted)] leading-tight">{stat.label}</div>
-        </div>
+          <div className="text-[10px] text-muted-foreground leading-tight">{stat.label}</div>
+        </Card>
       ))}
     </div>
   );

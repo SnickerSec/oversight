@@ -2,6 +2,8 @@
 
 import { ScanJob } from '@/lib/scanner/types';
 import { timeAgo } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 
 interface ScanStatusProps {
   job: ScanJob;
@@ -21,26 +23,22 @@ export function ScanStatus({ job }: ScanStatusProps) {
   return (
     <div className="flex items-center gap-3">
       <div className="flex items-center gap-2">
-        <div className={`w-2 h-2 rounded-full ${config.color}`} />
-        <span className="text-sm">{config.label}</span>
+        <Badge className={`rounded-full ${config.color} text-white`}>
+          {config.label}
+        </Badge>
         {job.currentTool && job.status === 'scanning' && (
-          <span className="text-xs text-[var(--text-muted)]">
+          <span className="text-xs text-muted-foreground">
             ({job.currentTool})
           </span>
         )}
       </div>
 
       {job.progress !== undefined && job.status === 'scanning' && (
-        <div className="flex-1 max-w-32 h-1.5 bg-[var(--card-border)] rounded-full overflow-hidden">
-          <div
-            className="h-full bg-[var(--accent)] transition-all duration-300"
-            style={{ width: `${job.progress}%` }}
-          />
-        </div>
+        <Progress value={job.progress} className="flex-1 max-w-32 h-1.5" />
       )}
 
       {job.completedAt && (
-        <span className="text-xs text-[var(--text-muted)]">
+        <span className="text-xs text-muted-foreground">
           {timeAgo(job.completedAt)}
         </span>
       )}

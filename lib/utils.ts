@@ -1,6 +1,9 @@
-/**
- * Shared utility functions for the Oversight Dashboard
- */
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
 
 /**
  * Formats a date string into a human-readable relative time

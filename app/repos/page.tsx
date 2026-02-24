@@ -4,6 +4,9 @@ import useSWR from 'swr';
 import { RepoWithDetails } from '@/lib/github';
 import RepoCard from '../components/RepoCard';
 import WorkflowStatus from '../components/WorkflowStatus';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -26,7 +29,6 @@ export default function RepositoriesPage() {
 
   const repos = data?.repos;
 
-  // Calculate total open issues and PRs
   const totalIssues = repos?.reduce((sum, repo) => sum + (repo.open_issues_count || 0), 0) || 0;
   const totalPRs = repos?.reduce((sum, repo) => {
     const prCount = repo.pullRequests?.filter(pr => pr.state === 'open').length || 0;
@@ -41,7 +43,7 @@ export default function RepositoriesPage() {
             <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"/>
           </svg>
           Repositories
-          {repos && <span className="badge bg-[var(--accent)] text-white">{repos.length}</span>}
+          {repos && <Badge className="rounded-full">{repos.length}</Badge>}
         </h1>
 
         {repos && (
@@ -52,7 +54,7 @@ export default function RepositoriesPage() {
                 <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/>
               </svg>
               <span className="font-semibold text-[var(--foreground)]">{totalIssues}</span>
-              <span className="text-[var(--text-muted)]">Open Issues</span>
+              <span className="text-muted-foreground">Open Issues</span>
             </div>
 
             <div className="flex items-center gap-1.5 text-sm">
@@ -60,26 +62,26 @@ export default function RepositoriesPage() {
                 <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/>
               </svg>
               <span className="font-semibold text-[var(--foreground)]">{totalPRs}</span>
-              <span className="text-[var(--text-muted)]">Pull Requests</span>
+              <span className="text-muted-foreground">Pull Requests</span>
             </div>
           </div>
         )}
       </div>
 
       {error && (
-        <div className="card text-center py-8">
+        <Card className="p-4 text-center py-8">
           <p className="text-[var(--accent-red)]">Failed to load repositories</p>
-        </div>
+        </Card>
       )}
 
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="card animate-pulse">
-              <div className="h-5 w-32 bg-[var(--card-border)] rounded mb-2" />
-              <div className="h-4 w-full bg-[var(--card-border)] rounded mb-3" />
-              <div className="h-3 w-24 bg-[var(--card-border)] rounded" />
-            </div>
+            <Card key={i} className="p-4">
+              <Skeleton className="h-5 w-32 mb-2" />
+              <Skeleton className="h-4 w-full mb-3" />
+              <Skeleton className="h-3 w-24" />
+            </Card>
           ))}
         </div>
       )}

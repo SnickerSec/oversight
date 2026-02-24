@@ -6,6 +6,14 @@ import Link from 'next/link';
 import { RepoWithDetails } from '@/lib/github';
 import { getRailwayStatusColor, getRailwayStatusLabel, getRailwayStatusBgColor } from '@/lib/railway';
 import { timeAgo } from '@/lib/utils';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ExternalLink } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 interface RailwayStandaloneProject {
   projectId: string;
@@ -155,9 +163,9 @@ export default function RailwayPage() {
           <RailwayLogo className="w-7 h-7" />
           Railway Deployments
         </h1>
-        <div className="card text-center py-12">
+        <Card className="p-4 text-center py-12">
           <p className="text-[var(--accent-red)]">Failed to load Railway data</p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -171,20 +179,20 @@ export default function RailwayPage() {
         </h1>
         <div className="grid grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="card animate-pulse">
-              <div className="h-8 bg-[var(--card-border)] rounded mb-2" />
-              <div className="h-4 w-16 bg-[var(--card-border)] rounded" />
-            </div>
+            <Card key={i} className="p-4">
+              <Skeleton className="h-8 w-full mb-2" />
+              <Skeleton className="h-4 w-16" />
+            </Card>
           ))}
         </div>
-        <div className="card animate-pulse">
-          <div className="h-10 bg-[var(--card-border)] rounded mb-4" />
+        <Card className="p-4">
+          <Skeleton className="h-10 w-full mb-4" />
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-20 bg-[var(--card-border)] rounded" />
+              <Skeleton key={i} className="h-20 w-full" />
             ))}
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -196,17 +204,17 @@ export default function RailwayPage() {
           <RailwayLogo className="w-7 h-7" />
           Railway Deployments
         </h1>
-        <div className="card text-center py-12">
-          <RailwayLogo className="w-16 h-16 mx-auto mb-4 text-[var(--text-muted)]" />
+        <Card className="p-4 text-center py-12">
+          <RailwayLogo className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-semibold mb-2">Railway Token Required</h2>
-          <p className="text-[var(--text-muted)] mb-4">Connect your Railway account to see deployments</p>
-          <p className="text-sm text-[var(--text-muted)]">
+          <p className="text-muted-foreground mb-4">Connect your Railway account to see deployments</p>
+          <p className="text-sm text-muted-foreground">
             Add <code className="bg-[var(--card-border)] px-1 rounded">RAILWAY_TOKEN</code> to <code className="bg-[var(--card-border)] px-1 rounded">.env.local</code>
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-2">
+          <p className="text-xs text-muted-foreground mt-2">
             Create a token at <a href="https://railway.app/account/tokens" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">railway.app/account/tokens</a>
           </p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -233,76 +241,75 @@ export default function RailwayPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="card text-center">
+        <Card className="p-4 text-center">
           <div className="text-3xl font-bold">{stats.total}</div>
-          <div className="text-sm text-[var(--text-muted)]">Total Projects</div>
-        </div>
-        <div className="card text-center">
+          <div className="text-sm text-muted-foreground">Total Projects</div>
+        </Card>
+        <Card className="p-4 text-center">
           <div className="text-3xl font-bold text-[var(--accent-green)]">{stats.live}</div>
-          <div className="text-sm text-[var(--text-muted)]">Live</div>
-        </div>
-        <div className="card text-center">
+          <div className="text-sm text-muted-foreground">Live</div>
+        </Card>
+        <Card className="p-4 text-center">
           <div className="text-3xl font-bold text-[var(--accent-red)]">{stats.failed}</div>
-          <div className="text-sm text-[var(--text-muted)]">Failed</div>
-        </div>
-        <div className="card text-center">
+          <div className="text-sm text-muted-foreground">Failed</div>
+        </Card>
+        <Card className="p-4 text-center">
           <div className="text-3xl font-bold text-[var(--accent-orange)]">{stats.deploying}</div>
-          <div className="text-sm text-[var(--text-muted)]">Deploying</div>
-        </div>
+          <div className="text-sm text-muted-foreground">Deploying</div>
+        </Card>
       </div>
 
       {/* Filters */}
-      <div className="card">
+      <Card className="p-4">
         <div className="flex flex-wrap gap-4">
           {/* Search */}
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
                 type="text"
                 placeholder="Search projects..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
+                className="pl-10"
               />
             </div>
           </div>
 
           {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            className="px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
-          >
-            <option value="all">All Status ({stats.total})</option>
-            <option value="success">Live ({stats.live})</option>
-            <option value="failed">Failed ({stats.failed})</option>
-            <option value="deploying">Deploying ({stats.deploying})</option>
-          </select>
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+            <SelectTrigger className="w-auto min-w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status ({stats.total})</SelectItem>
+              <SelectItem value="success">Live ({stats.live})</SelectItem>
+              <SelectItem value="failed">Failed ({stats.failed})</SelectItem>
+              <SelectItem value="deploying">Deploying ({stats.deploying})</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      </div>
+      </Card>
 
       {/* Results */}
-      <div className="text-sm text-[var(--text-muted)]">
+      <div className="text-sm text-muted-foreground">
         Showing {filteredProjects.length} of {allRailwayProjects.length} deployments
       </div>
 
       {/* Deployments List */}
       {filteredProjects.length === 0 ? (
-        <div className="card text-center py-12">
-          <RailwayLogo className="w-12 h-12 mx-auto mb-3 text-[var(--text-muted)]" />
-          <p className="text-[var(--text-muted)]">
+        <Card className="p-4 text-center py-12">
+          <RailwayLogo className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+          <p className="text-muted-foreground">
             {allRailwayProjects.length === 0
               ? 'No Railway deployments found'
               : 'No deployments match your filters'}
           </p>
-        </div>
+        </Card>
       ) : (
         <div className="space-y-3">
           {filteredProjects.map((project) => (
-            <div key={project.id} className="card !p-4">
+            <Card key={project.id} className="p-4">
               <div className="flex items-start gap-4">
                 {/* Status Indicator */}
                 <div className={`w-3 h-3 rounded-full mt-1.5 ${getRailwayStatusBgColor(project.deploymentStatus)}`} />
@@ -315,13 +322,13 @@ export default function RailwayPage() {
                       {getRailwayStatusLabel(project.deploymentStatus)}
                     </span>
                     {project.type === 'standalone' && (
-                      <span className="px-2 py-0.5 text-xs bg-[var(--accent-orange)] text-white rounded">
+                      <Badge className="rounded-full bg-[var(--accent-orange)] text-white">
                         Standalone
-                      </span>
+                      </Badge>
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-muted)]">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"/>
@@ -338,7 +345,7 @@ export default function RailwayPage() {
                         </Link>
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[var(--text-muted)]">
+                      <span className="flex items-center gap-1 text-muted-foreground">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
@@ -355,30 +362,30 @@ export default function RailwayPage() {
                 {/* Actions */}
                 <div className="flex items-center gap-2 shrink-0">
                   {project.deploymentUrl && (
+                    <Button size="sm" className="bg-[var(--accent-green)] hover:bg-[var(--accent-green)]/90" asChild>
+                      <a
+                        href={`https://${project.deploymentUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Visit
+                      </a>
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" asChild>
                     <a
-                      href={`https://${project.deploymentUrl}`}
+                      href={`https://railway.app/project/${project.projectId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-1.5 text-sm bg-[var(--accent-green)] text-white rounded-md hover:opacity-90 flex items-center gap-1"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      Visit
+                      <RailwayLogo className="w-4 h-4" />
+                      Railway
                     </a>
-                  )}
-                  <a
-                    href={`https://railway.app/project/${project.projectId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 text-sm border border-[var(--card-border)] rounded-md hover:bg-[var(--card-border)] flex items-center gap-1"
-                  >
-                    <RailwayLogo className="w-4 h-4" />
-                    Railway
-                  </a>
+                  </Button>
                 </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}
