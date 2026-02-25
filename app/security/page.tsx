@@ -411,6 +411,15 @@ export default function SecurityPage() {
     local: allAlerts.filter(a => a.source === 'local').length,
   }), [allAlerts]);
 
+  // Per-repo alert counts
+  const repoCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allAlerts.forEach(a => {
+      counts[a.repoName] = (counts[a.repoName] || 0) + 1;
+    });
+    return counts;
+  }, [allAlerts]);
+
   // Scan summary
   const scanSummary = useMemo(() => {
     const completedScans = Object.values(scanJobs).filter(j => j.status === 'completed');
@@ -537,22 +546,6 @@ export default function SecurityPage() {
         </Select>
       </div>
 
-      {/* Repo Filter */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Repository</label>
-        <Select value={selectedRepo} onValueChange={setSelectedRepo}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Repositories</SelectItem>
-            {repoNames.map(name => (
-              <SelectItem key={name} value={name}>{name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       {/* Sort */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sort by</label>
@@ -652,6 +645,40 @@ export default function SecurityPage() {
                 {filterSidebar}
               </Card>
             )}
+          </div>
+
+          {/* Repo Filter Buttons */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={selectedRepo === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectedRepo('all')}
+              className="gap-1.5"
+            >
+              All
+              <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-xs ml-0.5">
+                {allAlerts.length}
+              </Badge>
+            </Button>
+            {repoNames.map(name => (
+              <Button
+                key={name}
+                variant={selectedRepo === name ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedRepo(name)}
+                className="gap-1.5"
+              >
+                {name}
+                <Badge
+                  variant="secondary"
+                  className={`rounded-full px-1.5 py-0 text-xs ml-0.5 ${
+                    (repoCounts[name] || 0) > 0 ? 'bg-[var(--accent-red)]/20 text-[var(--accent-red)]' : ''
+                  }`}
+                >
+                  {repoCounts[name] || 0}
+                </Badge>
+              </Button>
+            ))}
           </div>
 
           {/* Scan Controls */}
