@@ -620,7 +620,7 @@ export default function SecurityPage() {
         </aside>
 
         {/* Main Content */}
-        <div className="flex-1 min-w-0 space-y-6">
+        <div className="flex-1 min-w-0 flex flex-col gap-6">
           {/* Mobile Filters Toggle */}
           <div className="lg:hidden">
             <Button
