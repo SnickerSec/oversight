@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, X, Filter, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, X, Filter, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -445,6 +445,27 @@ export default function SecurityPage() {
   // Mobile filter panel toggle
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  // Copy to clipboard state
+  const [copiedColumn, setCopiedColumn] = useState<string | null>(null);
+
+  const copyAlerts = useCallback((alerts: UnifiedAlert[], columnName: string) => {
+    const text = alerts.map(a => {
+      const parts = [`[${a.severity.toUpperCase()}] ${a.title}`];
+      parts.push(`  Repo: ${a.repoName}`);
+      if (a.package) parts.push(`  Package: ${a.package}`);
+      if (a.path) parts.push(`  Path: ${a.path}${a.line ? `:${a.line}` : ''}`);
+      if (a.cveId) parts.push(`  CVE: ${a.cveId}`);
+      if (a.secretType) parts.push(`  Type: ${a.secretType}`);
+      if (a.tool) parts.push(`  Tool: ${a.tool}`);
+      if (a.htmlUrl) parts.push(`  URL: ${a.htmlUrl}`);
+      return parts.join('\n');
+    }).join('\n\n');
+
+    navigator.clipboard.writeText(text);
+    setCopiedColumn(columnName);
+    setTimeout(() => setCopiedColumn(null), 2000);
+  }, []);
+
   const hasActiveFilters = search !== '' || severity !== 'all' || selectedRepo !== 'all' || sourceFilter !== 'all' || sortBy !== 'severity';
 
   const clearAllFilters = () => {
@@ -830,6 +851,17 @@ export default function SecurityPage() {
                 </svg>
                 Dependencies
                 <Badge className="rounded-full bg-[var(--accent-orange)] text-white">{dependencyAlerts.length}</Badge>
+                {dependencyAlerts.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 ml-auto text-muted-foreground"
+                    title="Copy all dependency alerts"
+                    onClick={() => copyAlerts(dependencyAlerts, 'dependencies')}
+                  >
+                    {copiedColumn === 'dependencies' ? <Check className="w-3.5 h-3.5 text-[var(--accent-green)]" /> : <Copy className="w-3.5 h-3.5" />}
+                  </Button>
+                )}
               </h2>
 
               {dependencyAlerts.length === 0 ? (
@@ -856,6 +888,17 @@ export default function SecurityPage() {
                 </svg>
                 Code Analysis
                 <Badge className="rounded-full bg-[var(--accent-purple)] text-white">{codeAlerts.length}</Badge>
+                {codeAlerts.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 ml-auto text-muted-foreground"
+                    title="Copy all code analysis alerts"
+                    onClick={() => copyAlerts(codeAlerts, 'code')}
+                  >
+                    {copiedColumn === 'code' ? <Check className="w-3.5 h-3.5 text-[var(--accent-green)]" /> : <Copy className="w-3.5 h-3.5" />}
+                  </Button>
+                )}
               </h2>
 
               {codeAlerts.length === 0 ? (
@@ -882,6 +925,17 @@ export default function SecurityPage() {
                 </svg>
                 Secrets
                 <Badge className="rounded-full bg-[var(--accent-red)] text-white">{secretAlerts.length}</Badge>
+                {secretAlerts.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 ml-auto text-muted-foreground"
+                    title="Copy all secret alerts"
+                    onClick={() => copyAlerts(secretAlerts, 'secrets')}
+                  >
+                    {copiedColumn === 'secrets' ? <Check className="w-3.5 h-3.5 text-[var(--accent-green)]" /> : <Copy className="w-3.5 h-3.5" />}
+                  </Button>
+                )}
               </h2>
 
               {secretAlerts.length === 0 ? (
