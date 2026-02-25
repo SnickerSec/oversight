@@ -4,7 +4,7 @@ import { RepoWithDetails } from '@/lib/github';
 import { LANGUAGE_COLORS, DEFAULT_LANGUAGE_COLOR } from '@/lib/constants';
 import { getRailwayStatusColor, getRailwayStatusLabel } from '@/lib/railway';
 import { getSupabaseStatusColor, getSupabaseStatusLabel } from '@/lib/supabase';
-import { Star, GitFork, ExternalLink } from 'lucide-react';
+import { Star, GitFork, ExternalLink, ShieldAlert } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -14,6 +14,10 @@ interface RepoCardProps {
 
 export default function RepoCard({ repo }: RepoCardProps) {
   const langColor = repo.language ? LANGUAGE_COLORS[repo.language] || DEFAULT_LANGUAGE_COLOR : DEFAULT_LANGUAGE_COLOR;
+  const securityIssueCount =
+    (repo.securityAlerts?.dependabot?.length || 0) +
+    (repo.securityAlerts?.codeScanning?.length || 0) +
+    (repo.securityAlerts?.secretScanning?.length || 0);
 
   return (
     <a
@@ -97,6 +101,18 @@ export default function RepoCard({ repo }: RepoCardProps) {
                 <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/>
               </svg>
               {repo.open_issues_count}
+            </span>
+          )}
+
+          {securityIssueCount > 0 ? (
+            <span className="flex items-center gap-1 text-[var(--accent-red)]" title={`${securityIssueCount} open security alert${securityIssueCount !== 1 ? 's' : ''}`}>
+              <ShieldAlert className="w-3 h-3" />
+              {securityIssueCount}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-[var(--accent-green)]" title="No open security alerts">
+              <ShieldAlert className="w-3 h-3" />
+              0
             </span>
           )}
 
