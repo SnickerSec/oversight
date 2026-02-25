@@ -24,8 +24,9 @@ export default function RepoCard({ repo }: RepoCardProps) {
       href={repo.html_url}
       target="_blank"
       rel="noopener noreferrer"
+      className="h-full"
     >
-      <Card className="p-3 hover:border-[var(--accent)] transition-colors cursor-pointer">
+      <Card className="p-3 h-full flex flex-col hover:border-[var(--accent)] transition-colors cursor-pointer">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-[var(--accent)] font-medium text-sm truncate">
             {repo.name}
@@ -67,13 +68,11 @@ export default function RepoCard({ repo }: RepoCardProps) {
           )}
         </div>
 
-        {repo.description && (
-          <p className="text-xs text-muted-foreground mb-2 line-clamp-1">
-            {repo.description}
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground mb-2 line-clamp-1 flex-1">
+          {repo.description || '\u00A0'}
+        </p>
 
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-auto">
           {repo.language && (
             <span className="flex items-center gap-1">
               <span
