@@ -12,8 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ExternalLink } from 'lucide-react';
-import { Search } from 'lucide-react';
+import { ExternalLink, Search, TrainFront } from 'lucide-react';
 
 interface RailwayStandaloneProject {
   projectId: string;
@@ -45,13 +44,7 @@ async function fetchData(): Promise<DashboardData> {
 }
 
 function RailwayLogo({ className }: { className?: string }) {
-  return (
-    <img
-      src="/railway-logo.jpg"
-      alt="Railway"
-      className={`${className} invert`}
-    />
-  );
+  return <TrainFront className={className} />;
 }
 
 export default function RailwayPage() {
