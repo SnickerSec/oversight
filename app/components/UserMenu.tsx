@@ -1,7 +1,8 @@
 "use client"
 
 import { signOut, useSession } from "next-auth/react"
-import { ChevronDown, LogOut } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { ChevronDown, LogOut, Settings } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button"
 
 export default function UserMenu() {
   const { data: session } = useSession()
+  const router = useRouter()
 
   if (!session?.user) {
     return null
@@ -42,6 +44,14 @@ export default function UserMenu() {
             <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => router.push("/settings")}
+          className="cursor-pointer"
+        >
+          <Settings className="w-4 h-4" />
+          Settings
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => signOut({ callbackUrl: "/login" })}

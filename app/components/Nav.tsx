@@ -136,7 +136,6 @@ export function NavLinks() {
     { href: '/gcp', label: 'GCP' },
     { href: '/elevenlabs', label: 'ElevenLabs' },
     { href: '/costs', label: 'Costs' },
-    { href: '/settings', label: 'Settings' },
   ];
 
   return (
@@ -158,7 +157,7 @@ export function NavLinks() {
             <SheetTitle>Navigation</SheetTitle>
           </SheetHeader>
           <nav className="flex flex-col gap-1 mt-4">
-            {links.map((link) => (
+            {[...links, { href: '/settings', label: 'Settings' }].map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -170,7 +169,7 @@ export function NavLinks() {
                 }`}
               >
                 {link.label}
-                {link.badge !== undefined && (
+                {'badge' in link && link.badge !== undefined && (
                   <Badge className={`rounded-full ${
                     pathname === link.href
                       ? 'bg-white text-[var(--accent)]'
