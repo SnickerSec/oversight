@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AlertCircle, Lightbulb } from 'lucide-react';
 
 interface ServiceMetrics {
   apiCalls: number;
@@ -739,9 +740,7 @@ export default function CostsPage() {
           {gcpBilling?.error ? (
             <div className="p-4 bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 rounded-lg">
               <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-[var(--accent-red)] mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <AlertCircle className="w-5 h-5 text-[var(--accent-red)] mt-0.5" />
                 <div>
                   <div className="font-medium text-[var(--accent-red)]">Billing API Error</div>
                   <div className="text-sm text-muted-foreground mt-1">{gcpBilling.error}</div>
@@ -1129,9 +1128,7 @@ export default function CostsPage() {
         {metrics?.cacheDetails?.recommendations && metrics.cacheDetails.recommendations.length > 0 && (
           <div className="p-4 bg-[var(--background)] rounded-lg border border-border">
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <svg className="w-4 h-4 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
+              <Lightbulb className="w-4 h-4 text-[var(--accent)]" />
               Recommendations
             </h3>
             <ul className="space-y-2 text-sm">

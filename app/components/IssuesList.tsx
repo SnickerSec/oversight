@@ -4,6 +4,7 @@ import { Issue, RepoWithDetails } from '@/lib/github';
 import { timeAgo } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { CircleDot } from 'lucide-react';
 
 interface IssuesListProps {
   repos: RepoWithDetails[];
@@ -17,10 +18,7 @@ export default function IssuesList({ repos }: IssuesListProps) {
   return (
     <Card className="p-4">
       <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <svg className="w-5 h-5 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/>
-          <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/>
-        </svg>
+        <CircleDot className="w-5 h-5 text-[var(--accent-green)]" />
         Open Issues
         {allIssues.length > 0 && (
           <Badge className="rounded-full bg-[var(--accent-green)] text-black">
@@ -35,10 +33,7 @@ export default function IssuesList({ repos }: IssuesListProps) {
         <div className="space-y-3">
           {allIssues.slice(0, 10).map((issue) => (
             <div key={issue.id} className="flex gap-3 text-sm">
-              <svg className="w-4 h-4 mt-0.5 flex-shrink-0 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/>
-                <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/>
-              </svg>
+              <CircleDot className="w-4 h-4 mt-0.5 flex-shrink-0 text-[var(--accent-green)]" />
               <div className="flex-1 min-w-0">
                 <a
                   href={issue.html_url}

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search } from 'lucide-react';
+import { Search, ExternalLink, Pause, Play, AudioLines } from 'lucide-react';
 
 interface ElevenLabsSubscription {
   tier: string;
@@ -80,11 +80,7 @@ function formatDate(unixTime: number): string {
 }
 
 function ElevenLabsLogo({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M7 4h2v16H7V4zm8 0h2v16h-2V4z"/>
-    </svg>
-  );
+  return <AudioLines className={className} />;
 }
 
 export default function ElevenLabsPage() {
@@ -224,9 +220,7 @@ export default function ElevenLabsPage() {
           className="text-sm text-[var(--accent)] hover:underline flex items-center gap-1"
         >
           Open ElevenLabs
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
+          <ExternalLink className="w-4 h-4" />
         </a>
       </div>
 
@@ -332,13 +326,9 @@ export default function ElevenLabsPage() {
                         className="p-1.5 hover:bg-[var(--card-border)] rounded"
                       >
                         {playingVoice === voice.voice_id ? (
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
-                          </svg>
+                          <Pause className="w-4 h-4" />
                         ) : (
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
-                          </svg>
+                          <Play className="w-4 h-4" />
                         )}
                       </button>
                     )}
@@ -386,13 +376,9 @@ export default function ElevenLabsPage() {
                         className={`p-2 rounded-full ${playingVoice === voice.voice_id ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--card-border)]'}`}
                       >
                         {playingVoice === voice.voice_id ? (
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
-                          </svg>
+                          <Pause className="w-5 h-5" />
                         ) : (
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
-                          </svg>
+                          <Play className="w-5 h-5" />
                         )}
                       </button>
                     )}

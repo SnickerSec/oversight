@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, ExternalLink, MapPin, Github, Info, ShieldAlert, Zap } from 'lucide-react';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -209,9 +209,7 @@ export default function SupabasePage() {
           className="text-sm text-[var(--accent)] hover:underline flex items-center gap-1"
         >
           Open Supabase Dashboard
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
+          <ExternalLink className="w-4 h-4" />
         </a>
       </div>
 
@@ -324,9 +322,7 @@ export default function SupabasePage() {
                           onClick={() => toggleExpanded(repo.supabase?.projectId || '')}
                           className="text-xs px-2 py-0.5 rounded bg-[var(--card-border)] hover:bg-[var(--accent)]/20 flex items-center gap-1"
                         >
-                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16Zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287ZM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
-                          </svg>
+                          <Info className="w-3 h-3" />
                           {totalAdvisors} advisor{totalAdvisors !== 1 ? 's' : ''}
                           <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>
@@ -335,16 +331,11 @@ export default function SupabasePage() {
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
+                        <MapPin className="w-4 h-4" />
                         Region: {repo.supabase?.region}
                       </span>
                       <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                          <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/>
-                        </svg>
+                        <Github className="w-4 h-4" />
                         <Link href={repo.html_url} target="_blank" className="text-[var(--accent)] hover:underline">
                           {repo.name}
                         </Link>
@@ -361,9 +352,7 @@ export default function SupabasePage() {
                         {advisors?.security && advisors.security.length > 0 && (
                           <div>
                             <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                              <svg className="w-4 h-4 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M7.467.133a1.748 1.748 0 0 1 1.066 0l5.25 1.68A1.75 1.75 0 0 1 15 3.48V7c0 1.566-.32 3.182-1.303 4.682-.983 1.498-2.585 2.813-5.032 3.855a1.697 1.697 0 0 1-1.33 0c-2.447-1.042-4.049-2.357-5.032-3.855C1.32 10.182 1 8.566 1 7V3.48a1.75 1.75 0 0 1 1.217-1.667Zm.61 1.429a.25.25 0 0 0-.153 0l-5.25 1.68a.25.25 0 0 0-.174.238V7c0 1.358.275 2.666 1.057 3.86.784 1.194 2.121 2.34 4.366 3.297a.196.196 0 0 0 .154 0c2.245-.956 3.582-2.104 4.366-3.298C13.225 9.666 13.5 8.36 13.5 7V3.48a.251.251 0 0 0-.174-.237l-5.25-1.68Z"/>
-                              </svg>
+                              <ShieldAlert className="w-4 h-4 text-[var(--accent-orange)]" />
                               Security ({advisors.security.length})
                             </h4>
                             <div className="space-y-2">
@@ -396,9 +385,7 @@ export default function SupabasePage() {
                         {advisors?.performance && advisors.performance.length > 0 && (
                           <div>
                             <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                              <svg className="w-4 h-4 text-[var(--accent)]" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
-                              </svg>
+                              <Zap className="w-4 h-4 text-[var(--accent)]" />
                               Performance ({advisors.performance.length})
                             </h4>
                             <div className="space-y-2">

@@ -3,6 +3,7 @@
 import { Commit } from '@/lib/github';
 import { timeAgo } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
+import { Activity } from 'lucide-react';
 
 interface ActivityFeedProps {
   commits: (Commit & { repoName: string })[];
@@ -13,9 +14,7 @@ export default function ActivityFeed({ commits }: ActivityFeedProps) {
     return (
       <Card className="p-4">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
-            <path d="M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"/>
-          </svg>
+          <Activity className="w-5 h-5" />
           Recent Activity
         </h2>
         <p className="text-muted-foreground">No recent commits</p>
@@ -26,9 +25,7 @@ export default function ActivityFeed({ commits }: ActivityFeedProps) {
   return (
     <Card className="p-4">
       <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"/>
-        </svg>
+        <Activity className="w-5 h-5" />
         Recent Activity
       </h2>
       <div className="space-y-3">
