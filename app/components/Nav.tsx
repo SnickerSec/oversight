@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import useSWR from 'swr';
-import { Menu } from 'lucide-react';
+import { Menu, Activity } from 'lucide-react';
 import { RepoWithDetails, getRecentCommits } from '@/lib/github';
 import { timeAgo } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -48,9 +48,7 @@ export default function Nav() {
           className="relative text-[var(--text-muted)] hover:text-[var(--foreground)]"
           title="Recent Activity"
         >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
-            <path d="M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"/>
-          </svg>
+          <Activity className="w-5 h-5" />
           {commits.length > 0 && (
             <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--accent)] rounded-full" />
           )}

@@ -7,6 +7,7 @@ import WorkflowStatus from '../components/WorkflowStatus';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BookMarked, CircleDot, GitPullRequest } from 'lucide-react';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -39,9 +40,7 @@ export default function RepositoriesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 16 16">
-            <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"/>
-          </svg>
+          <BookMarked className="w-6 h-6" />
           Repositories
           {repos && <Badge className="rounded-full">{repos.length}</Badge>}
         </h1>
@@ -49,18 +48,13 @@ export default function RepositoriesPage() {
         {repos && (
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-sm">
-              <svg className="w-4 h-4 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/>
-                <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/>
-              </svg>
+              <CircleDot className="w-4 h-4 text-[var(--accent-green)]" />
               <span className="font-semibold text-[var(--foreground)]">{totalIssues}</span>
               <span className="text-muted-foreground">Open Issues</span>
             </div>
 
             <div className="flex items-center gap-1.5 text-sm">
-              <svg className="w-4 h-4 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/>
-              </svg>
+              <GitPullRequest className="w-4 h-4 text-[var(--accent-purple)]" />
               <span className="font-semibold text-[var(--foreground)]">{totalPRs}</span>
               <span className="text-muted-foreground">Pull Requests</span>
             </div>

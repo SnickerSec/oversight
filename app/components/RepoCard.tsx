@@ -4,7 +4,7 @@ import { RepoWithDetails } from '@/lib/github';
 import { LANGUAGE_COLORS, DEFAULT_LANGUAGE_COLOR } from '@/lib/constants';
 import { getRailwayStatusColor, getRailwayStatusLabel } from '@/lib/railway';
 import { getSupabaseStatusColor, getSupabaseStatusLabel } from '@/lib/supabase';
-import { Star, GitFork, ExternalLink, ShieldAlert } from 'lucide-react';
+import { Star, GitFork, ExternalLink, ShieldAlert, CircleDot, Lock } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -33,9 +33,7 @@ export default function RepoCard({ repo }: RepoCardProps) {
           </span>
           {repo.private && (
             <Badge variant="outline" className="rounded text-[10px] px-1 py-0 text-[var(--accent-orange)] border-[var(--accent-orange)]/40 bg-[var(--accent-orange)]/20">
-              <svg className="w-2.5 h-2.5 mr-0.5" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M4 4a4 4 0 0 1 8 0v2h.25c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-5.5C2 6.784 2.784 6 3.75 6H4Zm8.25 3.5h-8.5a.25.25 0 0 0-.25.25v5.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25ZM10.5 6V4a2.5 2.5 0 1 0-5 0v2Z"/>
-              </svg>
+              <Lock className="w-2.5 h-2.5 mr-0.5" />
               private
             </Badge>
           )}
@@ -95,10 +93,7 @@ export default function RepoCard({ repo }: RepoCardProps) {
 
           {repo.open_issues_count > 0 && (
             <span className="flex items-center gap-1">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/>
-                <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/>
-              </svg>
+              <CircleDot className="w-3 h-3" />
               {repo.open_issues_count}
             </span>
           )}

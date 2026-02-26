@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, X, Filter, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import { Search, X, Filter, ChevronDown, ChevronUp, Copy, Check, AlertTriangle, Zap, KeyRound, CheckCircle2, ExternalLink, PlayCircle } from 'lucide-react';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -50,25 +50,13 @@ function getTypeIcon(type: string) {
   switch (type) {
     case 'dependabot':
     case 'trivy':
-      return (
-        <svg className="w-4 h-4 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
-        </svg>
-      );
+      return <AlertTriangle className="w-4 h-4 text-[var(--accent-orange)]" />;
     case 'code-scanning':
     case 'semgrep':
-      return (
-        <svg className="w-4 h-4 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
-        </svg>
-      );
+      return <Zap className="w-4 h-4 text-[var(--accent-purple)]" />;
     case 'secret-scanning':
     case 'gitleaks':
-      return (
-        <svg className="w-4 h-4 text-[var(--accent-red)]" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
-        </svg>
-      );
+      return <KeyRound className="w-4 h-4 text-[var(--accent-red)]" />;
   }
 }
 
@@ -508,9 +496,7 @@ export default function SecurityPage() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Security Alerts</h1>
         <Card className="p-4 text-center py-12">
-          <svg className="w-16 h-16 mx-auto mb-4 text-muted-foreground" fill="currentColor" viewBox="0 0 16 16">
-            <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
-          </svg>
+          <KeyRound className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-semibold mb-2">GitHub Token Required</h2>
           <p className="text-muted-foreground mb-4">Security alerts require authentication</p>
         </Card>
@@ -641,9 +627,7 @@ export default function SecurityPage() {
             {/* Scan Controls */}
             <Card className="p-4 space-y-3">
               <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-muted-foreground" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm4.879-2.773 4.264 2.559a.25.25 0 0 1 0 .428l-4.264 2.559A.25.25 0 0 1 6 10.559V5.442a.25.25 0 0 1 .379-.215Z"/>
-                </svg>
+                <PlayCircle className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm font-semibold">Scan</span>
               </div>
               <Select value={scanRepoSelection || undefined} onValueChange={setScanRepoSelection}>
@@ -816,9 +800,7 @@ export default function SecurityPage() {
             {/* Dependency Alerts Column */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <svg className="w-5 h-5 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575ZM8 5a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8 5Zm0 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
-                </svg>
+                <AlertTriangle className="w-5 h-5 text-[var(--accent-orange)]" />
                 Dependencies
                 <Badge className="rounded-full bg-[var(--accent-orange)] text-white">{dependencyAlerts.length}</Badge>
                 {dependencyAlerts.length > 0 && (
@@ -836,13 +818,11 @@ export default function SecurityPage() {
 
               {dependencyAlerts.length === 0 ? (
                 <Card className="p-4 text-center py-8">
-                  <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-                  </svg>
+                  <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" />
                   <p className="text-sm text-[var(--accent-green)] font-medium">No dependency alerts</p>
                 </Card>
               ) : (
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                <div className="space-y-2">
                   {dependencyAlerts.map((alert) => (
                     <AlertCard key={alert.id} alert={alert} />
                   ))}
@@ -853,9 +833,7 @@ export default function SecurityPage() {
             {/* Code Scanning Alerts Column */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <svg className="w-5 h-5 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Z"/>
-                </svg>
+                <Zap className="w-5 h-5 text-[var(--accent-purple)]" />
                 Code Analysis
                 <Badge className="rounded-full bg-[var(--accent-purple)] text-white">{codeAlerts.length}</Badge>
                 {codeAlerts.length > 0 && (
@@ -873,13 +851,11 @@ export default function SecurityPage() {
 
               {codeAlerts.length === 0 ? (
                 <Card className="p-4 text-center py-8">
-                  <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-                  </svg>
+                  <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" />
                   <p className="text-sm text-[var(--accent-green)] font-medium">No code issues</p>
                 </Card>
               ) : (
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                <div className="space-y-2">
                   {codeAlerts.map((alert) => (
                     <AlertCard key={alert.id} alert={alert} />
                   ))}
@@ -890,9 +866,7 @@ export default function SecurityPage() {
             {/* Secret Scanning Alerts Column */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <svg className="w-5 h-5 text-[var(--accent-red)]" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M4 4a4 4 0 1 1 2.5 3.7L2.8 12.4a.5.5 0 0 1-.8-.4V9.8a.5.5 0 0 1 .1-.3l3-3A4 4 0 0 1 4 4Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
-                </svg>
+                <KeyRound className="w-5 h-5 text-[var(--accent-red)]" />
                 Secrets
                 <Badge className="rounded-full bg-[var(--accent-red)] text-white">{secretAlerts.length}</Badge>
                 {secretAlerts.length > 0 && (
@@ -910,13 +884,11 @@ export default function SecurityPage() {
 
               {secretAlerts.length === 0 ? (
                 <Card className="p-4 text-center py-8">
-                  <svg className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/>
-                  </svg>
+                  <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-[var(--accent-green)]" />
                   <p className="text-sm text-[var(--accent-green)] font-medium">No secrets detected</p>
                 </Card>
               ) : (
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                <div className="space-y-2">
                   {secretAlerts.map((alert) => (
                     <AlertCard key={alert.id} alert={alert} />
                   ))}
@@ -982,9 +954,7 @@ function AlertCard({ alert }: { alert: UnifiedAlert }) {
           </div>
         </div>
         {alert.htmlUrl && (
-          <svg className="w-4 h-4 text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
+          <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0" />
         )}
       </div>
     </Card>

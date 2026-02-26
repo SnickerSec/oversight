@@ -5,12 +5,11 @@ import Link from 'next/link';
 import { RepoWithDetails } from '@/lib/github';
 import RefreshIndicator from './components/RefreshIndicator';
 import { useState, useEffect } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, AlertTriangle, BookMarked, Star, GitFork, ShieldAlert, TrainFront, Database, Cloud, AudioLines } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle } from 'lucide-react';
 
 const REFRESH_INTERVAL = 60000; // 60 seconds
 
@@ -170,9 +169,7 @@ export default function Dashboard() {
           <Card className="p-4 hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-[var(--accent)]" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"/>
-                </svg>
+                <BookMarked className="w-5 h-5 text-[var(--accent)]" />
                 <h2 className="font-semibold">Repositories</h2>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -180,15 +177,11 @@ export default function Dashboard() {
             <div className="text-3xl font-bold text-[var(--accent)] mb-2">{totalRepos}</div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"/>
-                </svg>
+                <Star className="w-3 h-3" />
                 {totalStars}
               </span>
               <span className="flex items-center gap-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/>
-                </svg>
+                <GitFork className="w-3 h-3" />
                 {totalForks}
               </span>
             </div>
@@ -200,9 +193,7 @@ export default function Dashboard() {
           <Card className="p-4 hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-[var(--accent-red)]" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M8 0c-.69 0-1.843.265-2.928.56-1.11.3-2.229.655-2.835.866a1.5 1.5 0 0 0-1.024 1.524L1.1 5.5a7.5 7.5 0 0 0 14.8 0l-.1-2.55a1.5 1.5 0 0 0-1.024-1.524c-.606-.21-1.725-.566-2.835-.866C10.843.265 9.69 0 8 0Zm0 3.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0V4a.5.5 0 0 1 .5-.5ZM8 10a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
-                </svg>
+                <ShieldAlert className="w-5 h-5 text-[var(--accent-red)]" />
                 <h2 className="font-semibold">Security</h2>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -219,9 +210,7 @@ export default function Dashboard() {
           <Card className="p-4 hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-[var(--accent-purple)]" fill="currentColor" viewBox="0 0 24 12">
-                  <path d="M0.5 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0zm1.9 0h0.8v12h-0.8V0z"/>
-                </svg>
+                <TrainFront className="w-5 h-5 text-[var(--accent-purple)]" />
                 <h2 className="font-semibold">Railway</h2>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -238,9 +227,7 @@ export default function Dashboard() {
           <Card className="p-4 hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-[var(--accent-green)]" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16ZM5.496 6.033h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286a.237.237 0 0 0 .241.247Zm2.325 6.443c.61 0 1.029-.394 1.029-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94 0 .533.425.927 1.01.927Z"/>
-                </svg>
+                <Database className="w-5 h-5 text-[var(--accent-green)]" />
                 <h2 className="font-semibold">Supabase</h2>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -257,9 +244,7 @@ export default function Dashboard() {
           <Card className="p-4 hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-[var(--accent-orange)]" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M6 0a.5.5 0 0 1 .5.5V3h3V.5a.5.5 0 0 1 1 0V3h1a.5.5 0 0 1 .5.5v3A3.5 3.5 0 0 1 8.5 10c-.002.434-.01.845-.04 1.22-.041.514-.126 1.003-.317 1.424a2.083 2.083 0 0 1-.97 1.028C6.725 13.9 6.169 14 5.5 14c-.998 0-1.61.33-1.974.718A1.922 1.922 0 0 0 3 16H2c0-.616.232-1.367.797-1.968C3.374 13.42 4.261 13 5.5 13c.581 0 .962-.088 1.218-.219.241-.123.4-.3.514-.55.121-.266.193-.621.23-1.09.027-.34.035-.718.037-1.141A3.5 3.5 0 0 1 4 6.5v-3a.5.5 0 0 1 .5-.5h1V.5A.5.5 0 0 1 6 0Z"/>
-                </svg>
+                <Cloud className="w-5 h-5 text-[var(--accent-orange)]" />
                 <h2 className="font-semibold">GCP</h2>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -285,9 +270,7 @@ export default function Dashboard() {
           <Card className="p-4 hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-[var(--accent)]" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M8.5 2.687c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492V2.687ZM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783Z"/>
-                </svg>
+                <AudioLines className="w-5 h-5 text-[var(--accent)]" />
                 <h2 className="font-semibold">ElevenLabs</h2>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, ExternalLink, CirclePlus, AlertTriangle, DollarSign } from 'lucide-react';
 
 interface GCPCloudRunService {
   name: string;
@@ -312,9 +312,7 @@ export default function GCPPage() {
           className="text-sm text-[var(--accent)] hover:underline flex items-center gap-1"
         >
           Open GCP Console
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
+          <ExternalLink className="w-4 h-4" />
         </a>
       </div>
 
@@ -604,25 +602,18 @@ export default function GCPPage() {
                     {service.usage && (
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                            <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
-                          </svg>
+                          <CirclePlus className="w-3 h-3" />
                           {service.usage.requestCount.toLocaleString()} requests (7d)
                         </span>
                         {service.usage.errorCount > 0 && (
                           <span className="flex items-center gap-1 text-[var(--accent-red)]">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                              <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
-                            </svg>
+                            <AlertTriangle className="w-3 h-3" />
                             {service.usage.errorCount} errors
                           </span>
                         )}
                         {service.cost && (
                           <span className="flex items-center gap-1 text-[var(--accent-orange)]">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                              <path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.05zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/>
-                            </svg>
+                            <DollarSign className="w-3 h-3" />
                             ${service.cost.amount.toFixed(2)}
                           </span>
                         )}
