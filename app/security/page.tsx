@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, X, Filter, ChevronDown, ChevronUp, Copy, Check, AlertTriangle, Zap, KeyRound, CheckCircle2, ExternalLink, PlayCircle } from 'lucide-react';
+import { Search, X, Filter, ChevronDown, ChevronUp, Copy, Check, AlertTriangle, Zap, KeyRound, CheckCircle2, ExternalLink } from 'lucide-react';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -66,7 +66,6 @@ export default function SecurityPage() {
   const [selectedRepo, setSelectedRepo] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'severity' | 'date' | 'repo'>('severity');
   const [sourceFilter, setSourceFilter] = useState<Source>('all');
-  const [scanRepoSelection, setScanRepoSelection] = useState<string>('');
 
   // Scanning state
   const [scanning, setScanning] = useState<Record<string, boolean>>({});
@@ -410,28 +409,6 @@ export default function SecurityPage() {
     return counts;
   }, [allAlerts]);
 
-  // Scan summary
-  const scanSummary = useMemo(() => {
-    const completedScans = Object.values(scanJobs).filter(j => j.status === 'completed');
-    return {
-      total: completedScans.length,
-      trivy: completedScans.reduce((sum, j) => sum + (j.results?.trivy?.vulnerabilities.length || 0), 0),
-      gitleaks: completedScans.reduce((sum, j) => sum + (j.results?.gitleaks?.secrets.length || 0), 0),
-      semgrep: completedScans.reduce((sum, j) => sum + (j.results?.semgrep?.findings.length || 0), 0),
-    };
-  }, [scanJobs]);
-
-  // Get the most recently completed scan for display
-  const latestCompletedScan = useMemo(() => {
-    const completed = Object.values(scanJobs)
-      .filter(j => j.status === 'completed' && j.completedAt)
-      .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime());
-    return completed[0] || null;
-  }, [scanJobs]);
-
-  // Track dismissed scan summaries
-  const [dismissedScanId, setDismissedScanId] = useState<string | null>(null);
-
   // Mobile filter panel toggle
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -626,90 +603,6 @@ export default function SecurityPage() {
               {filterSidebar}
             </Card>
 
-            {/* Scan Controls */}
-            <Card className="p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <PlayCircle className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">Scan</span>
-              </div>
-              <Select value={scanRepoSelection || undefined} onValueChange={setScanRepoSelection}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select repo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {repoNames.map(name => (
-                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <ScanButton
-                repoName={scanRepoSelection}
-                scanning={scanning[scanRepoSelection] || false}
-                progress={scanJobs[scanRepoSelection]}
-                onScan={handleScan}
-                disabled={!scanRepoSelection}
-              />
-              {scanSummary.total > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {scanSummary.total} scan{scanSummary.total !== 1 ? 's' : ''} done
-                </p>
-              )}
-
-              {/* Latest Scan Result Summary */}
-              {latestCompletedScan && latestCompletedScan.id !== dismissedScanId && (
-                <div className="pt-3 border-t border-border space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium truncate text-[var(--accent)]">{latestCompletedScan.repoName}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDismissedScanId(latestCompletedScan.id)}
-                      className="h-5 w-5 text-muted-foreground shrink-0"
-                      title="Dismiss"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Trivy</span>
-                      {(() => {
-                        const error = latestCompletedScan.results?.toolErrors?.trivy;
-                        if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
-                        const vulns = latestCompletedScan.results?.trivy?.vulnerabilities || [];
-                        if (vulns.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
-                        return <span className="text-[#f85149]">{vulns.length} found</span>;
-                      })()}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Secrets</span>
-                      {(() => {
-                        const error = latestCompletedScan.results?.toolErrors?.gitleaks;
-                        if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
-                        const secrets = latestCompletedScan.results?.gitleaks?.secrets || [];
-                        if (secrets.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
-                        return <span className="text-[#f85149]">{secrets.length} found</span>;
-                      })()}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Code</span>
-                      {(() => {
-                        const error = latestCompletedScan.results?.toolErrors?.semgrep;
-                        if (error) return <span className="text-[var(--accent-red)]" title={error}>Failed</span>;
-                        const findings = latestCompletedScan.results?.semgrep?.findings || [];
-                        if (findings.length === 0) return <span className="text-[var(--accent-green)]">Clean</span>;
-                        return <span className="text-[#f85149]">{findings.length} found</span>;
-                      })()}
-                    </div>
-                  </div>
-                  {latestCompletedScan.results?.toolErrors && Object.keys(latestCompletedScan.results.toolErrors).length > 0 && (
-                    <p className="text-[10px] text-[var(--accent-red)]">
-                      Missing: {Object.keys(latestCompletedScan.results.toolErrors).join(', ')}
-                    </p>
-                  )}
-                </div>
-              )}
-            </Card>
           </div>
         </aside>
 
@@ -739,62 +632,109 @@ export default function SecurityPage() {
                 <Card className="p-4">
                   {filterSidebar}
                 </Card>
-                <Card className="p-4 space-y-3">
-                  <span className="text-sm font-semibold">Scan</span>
-                  <Select value={scanRepoSelection || undefined} onValueChange={setScanRepoSelection}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select repo..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {repoNames.map(name => (
-                        <SelectItem key={name} value={name}>{name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <ScanButton
-                    repoName={scanRepoSelection}
-                    scanning={scanning[scanRepoSelection] || false}
-                    progress={scanJobs[scanRepoSelection]}
-                    onScan={handleScan}
-                    disabled={!scanRepoSelection}
-                  />
-                </Card>
               </div>
             )}
           </div>
 
           {/* Repo Filter Buttons */}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={selectedRepo === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedRepo('all')}
-              className="gap-1.5"
-            >
-              All
-              <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-xs ml-0.5">
-                {allAlerts.length}
-              </Badge>
-            </Button>
-            {repoNames.map(name => (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
               <Button
-                key={name}
-                variant={selectedRepo === name ? 'default' : 'outline'}
+                variant={selectedRepo === 'all' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedRepo(name)}
+                onClick={() => setSelectedRepo('all')}
                 className="gap-1.5"
               >
-                {name}
-                <Badge
-                  variant="secondary"
-                  className={`rounded-full px-1.5 py-0 text-xs ml-0.5 ${
-                    (repoCounts[name] || 0) > 0 ? 'bg-[var(--accent-red)]/20 text-[var(--accent-red)]' : ''
-                  }`}
-                >
-                  {repoCounts[name] || 0}
+                All
+                <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-xs ml-0.5">
+                  {allAlerts.length}
                 </Badge>
               </Button>
-            ))}
+              {repoNames.map(name => (
+                <Button
+                  key={name}
+                  variant={selectedRepo === name ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedRepo(name)}
+                  className="gap-1.5"
+                >
+                  {name}
+                  <Badge
+                    variant="secondary"
+                    className={`rounded-full px-1.5 py-0 text-xs ml-0.5 ${
+                      (repoCounts[name] || 0) > 0 ? 'bg-[var(--accent-red)]/20 text-[var(--accent-red)]' : ''
+                    }`}
+                  >
+                    {repoCounts[name] || 0}
+                  </Badge>
+                </Button>
+              ))}
+            </div>
+
+            {/* Contextual Scan Panel - shown when a repo is selected */}
+            {selectedRepo !== 'all' && (
+              <Card className="p-3">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <ScanButton
+                      repoName={selectedRepo}
+                      scanning={scanning[selectedRepo] || false}
+                      progress={scanJobs[selectedRepo]}
+                      onScan={handleScan}
+                    />
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3 text-[var(--accent-orange)]" />
+                        Trivy
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <KeyRound className="w-3 h-3 text-[var(--accent-red)]" />
+                        Gitleaks
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Zap className="w-3 h-3 text-[var(--accent-purple)]" />
+                        Semgrep
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Scan results for this repo */}
+                  {scanJobs[selectedRepo]?.status === 'completed' && scanJobs[selectedRepo]?.results && (
+                    <div className="flex items-center gap-3 text-xs">
+                      {(() => {
+                        const job = scanJobs[selectedRepo];
+                        const trivyError = job.results?.toolErrors?.trivy;
+                        const vulns = job.results?.trivy?.vulnerabilities || [];
+                        if (trivyError) return <span className="text-[var(--accent-red)]" title={trivyError}>Trivy failed</span>;
+                        return vulns.length > 0
+                          ? <span className="text-[var(--accent-red)]">{vulns.length} vuln{vulns.length !== 1 ? 's' : ''}</span>
+                          : <span className="text-[var(--accent-green)]">Deps clean</span>;
+                      })()}
+                      <span className="text-border">|</span>
+                      {(() => {
+                        const job = scanJobs[selectedRepo];
+                        const gitleaksError = job.results?.toolErrors?.gitleaks;
+                        const secrets = job.results?.gitleaks?.secrets || [];
+                        if (gitleaksError) return <span className="text-[var(--accent-red)]" title={gitleaksError}>Gitleaks failed</span>;
+                        return secrets.length > 0
+                          ? <span className="text-[var(--accent-red)]">{secrets.length} secret{secrets.length !== 1 ? 's' : ''}</span>
+                          : <span className="text-[var(--accent-green)]">No secrets</span>;
+                      })()}
+                      <span className="text-border">|</span>
+                      {(() => {
+                        const job = scanJobs[selectedRepo];
+                        const semgrepError = job.results?.toolErrors?.semgrep;
+                        const findings = job.results?.semgrep?.findings || [];
+                        if (semgrepError) return <span className="text-[var(--accent-red)]" title={semgrepError}>Semgrep failed</span>;
+                        return findings.length > 0
+                          ? <span className="text-[var(--accent-red)]">{findings.length} finding{findings.length !== 1 ? 's' : ''}</span>
+                          : <span className="text-[var(--accent-green)]">Code clean</span>;
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
           </div>
 
           {/* Three Column Layout */}
