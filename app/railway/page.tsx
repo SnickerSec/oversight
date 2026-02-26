@@ -51,8 +51,10 @@ export default function RailwayPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
 
-  const { data, error, isLoading } = useSWR<DashboardData>('railway', fetchData, {
-    refreshInterval: 300000, // 5 minutes to avoid Railway API rate limits
+  const { data, error, isLoading } = useSWR<DashboardData>('dashboard', fetchData, {
+    refreshInterval: 300000,
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
   });
 
   const repos = data?.repos || [];

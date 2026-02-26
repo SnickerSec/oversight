@@ -73,8 +73,10 @@ export default function SecurityPage() {
   const [scanJobs, setScanJobs] = useState<Record<string, ScanJob>>({});
   const [pollIntervals, setPollIntervals] = useState<Record<string, NodeJS.Timeout>>({});
 
-  const { data, error, isLoading, mutate } = useSWR<DashboardData>('security', fetchData, {
-    refreshInterval: 60000,
+  const { data, error, isLoading, mutate } = useSWR<DashboardData>('dashboard', fetchData, {
+    refreshInterval: 300000,
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
   });
 
   const repos = data?.repos || [];

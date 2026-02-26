@@ -67,8 +67,10 @@ export default function SupabasePage() {
     });
   };
 
-  const { data, error, isLoading } = useSWR<DashboardData>('supabase', fetchData, {
-    refreshInterval: 30000,
+  const { data, error, isLoading } = useSWR<DashboardData>('dashboard', fetchData, {
+    refreshInterval: 300000,
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
   });
 
   const repos = data?.repos || [];

@@ -110,11 +110,10 @@ export function NavLinks() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const { data } = useSWR<DashboardData>('/api/github-nav', fetchDashboardData, {
-    refreshInterval: 60000,
-    revalidateOnFocus: true,
-    revalidateIfStale: true,
-    revalidateOnMount: true,
+  const { data } = useSWR<DashboardData>('dashboard', fetchDashboardData, {
+    refreshInterval: 300000,
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
   });
 
   // Calculate total security alerts

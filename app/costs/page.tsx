@@ -221,11 +221,13 @@ export default function CostsPage() {
   const { data: metrics, error: metricsError, isLoading: metricsLoading } = useSWR(
     ['metrics', days],
     () => fetchMetrics(days),
-    { refreshInterval: 60000 }
+    { refreshInterval: 300000, revalidateOnFocus: false, dedupingInterval: 60000 }
   );
 
-  const { data: dashboard } = useSWR('dashboard-costs', fetchDashboard, {
-    refreshInterval: 60000,
+  const { data: dashboard } = useSWR('dashboard', fetchDashboard, {
+    refreshInterval: 300000,
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
   });
 
   const todayMetrics = useMemo(() => {

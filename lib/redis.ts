@@ -30,11 +30,22 @@ export const getRedis = () => {
   return redis
 }
 
-// Cache wrapper with TTL (time-to-live in seconds)
+interface CacheEntry<T> {
+  d: T;       // data
+  t: number;  // fetchedAt timestamp
+}
+
+// Track in-flight background refreshes to prevent duplicate fetches
+const refreshing = new Set<string>()
+
+// Cache wrapper with stale-while-revalidate
+// - freshSeconds: data is served from cache without refresh
+// - staleTTL: total Redis key lifetime (stale data kept for background refresh)
 export async function withCache<T>(
   key: string,
   fetcher: () => Promise<T>,
-  ttlSeconds: number = 60
+  freshSeconds: number = 300,
+  staleTTL: number = 1800
 ): Promise<T> {
   const client = getRedis()
 
@@ -44,11 +55,30 @@ export async function withCache<T>(
   }
 
   try {
-    // Try to get from cache
     const cached = await client.get(key)
     if (cached) {
+      const entry: CacheEntry<T> = JSON.parse(cached)
+      const ageSeconds = (Date.now() - entry.t) / 1000
+
+      if (ageSeconds < freshSeconds) {
+        // Fresh - serve directly
+        trackCacheHit(key)
+        return entry.d
+      }
+
+      // Stale but available - serve immediately, refresh in background
       trackCacheHit(key)
-      return JSON.parse(cached) as T
+      if (!refreshing.has(key)) {
+        refreshing.add(key)
+        fetcher()
+          .then(data => {
+            const newEntry: CacheEntry<T> = { d: data, t: Date.now() }
+            return client.setex(key, staleTTL, JSON.stringify(newEntry))
+          })
+          .catch(() => {})
+          .finally(() => refreshing.delete(key))
+      }
+      return entry.d
     }
 
     // Cache miss - fetch fresh data
@@ -56,9 +86,8 @@ export async function withCache<T>(
     const data = await fetcher()
 
     // Store in cache (don't await, fire and forget)
-    client.setex(key, ttlSeconds, JSON.stringify(data)).catch(() => {
-      // Ignore cache write errors
-    })
+    const entry: CacheEntry<T> = { d: data, t: Date.now() }
+    client.setex(key, staleTTL, JSON.stringify(entry)).catch(() => {})
 
     return data
   } catch {

@@ -1595,7 +1595,7 @@ async function fetchElevenLabsData(): Promise<ElevenLabsData> {
 }
 
 // Cache TTL in seconds (30 seconds for dashboard data)
-const CACHE_TTL = 30;
+const CACHE_TTL = 300; // 5 minutes fresh, stale served while refreshing
 
 async function fetchDashboardData() {
   // Fetch all data in parallel
@@ -1702,7 +1702,11 @@ export async function GET() {
 
     // Use Redis cache if available, otherwise fetch directly
     const data = await withCache('dashboard:data', fetchDashboardData, CACHE_TTL);
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
+      },
+    });
   } catch (error) {
     console.error('GitHub API error:', error);
     return NextResponse.json(

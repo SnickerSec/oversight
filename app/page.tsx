@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 
-const REFRESH_INTERVAL = 60000; // 60 seconds
+const REFRESH_INTERVAL = 300000; // 5 minutes
 
 interface GCPData {
   cloudRun: any[];
@@ -51,7 +51,8 @@ export default function Dashboard() {
     fetchDashboardData,
     {
       refreshInterval: REFRESH_INTERVAL,
-      revalidateOnFocus: true,
+      revalidateOnFocus: false,
+      dedupingInterval: 60000,
       onSuccess: () => {
         setLastUpdated(new Date());
       },

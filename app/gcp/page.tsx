@@ -158,8 +158,10 @@ export default function GCPPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
 
-  const { data, error, isLoading } = useSWR<DashboardData>('gcp', fetchData, {
-    refreshInterval: 60000,
+  const { data, error, isLoading } = useSWR<DashboardData>('dashboard', fetchData, {
+    refreshInterval: 300000,
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
   });
 
   const gcp = data?.gcp;

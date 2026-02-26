@@ -88,8 +88,10 @@ export default function ElevenLabsPage() {
   const [search, setSearch] = useState('');
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
 
-  const { data, error, isLoading } = useSWR<DashboardData>('elevenlabs', fetchData, {
-    refreshInterval: 60000,
+  const { data, error, isLoading } = useSWR<DashboardData>('dashboard', fetchData, {
+    refreshInterval: 300000,
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
   });
 
   const elevenLabs = data?.elevenLabs;
