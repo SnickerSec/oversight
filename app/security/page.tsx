@@ -110,7 +110,7 @@ export default function SecurityPage() {
       } catch (err) {
         console.error('Failed to poll scan status:', err);
       }
-    }, 2000);
+    }, 5000);
 
     setPollIntervals(prev => ({ ...prev, [repoName]: interval }));
   }, []);

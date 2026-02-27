@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rate-limit"
 function applySecurityHeaders(response: NextResponse): void {
   response.headers.set(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https://avatars.githubusercontent.com data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' https://avatars.githubusercontent.com data:; font-src 'self'; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
   )
   response.headers.set(
     "Strict-Transport-Security",
@@ -24,7 +24,7 @@ function applySecurityHeaders(response: NextResponse): void {
 }
 
 const rateLimitRules: { prefix: string; limit: number; windowSeconds: number }[] = [
-  { prefix: "/api/security/scan", limit: 3, windowSeconds: 60 },
+  { prefix: "/api/security/scan", limit: 30, windowSeconds: 60 },
   { prefix: "/api/slack/test", limit: 3, windowSeconds: 60 },
   { prefix: "/api/debug", limit: 5, windowSeconds: 60 },
   { prefix: "/api/settings", limit: 10, windowSeconds: 60 },
