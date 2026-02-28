@@ -33,7 +33,7 @@ export async function runGitleaks(repoDir: string): Promise<GitleaksResult> {
       // Cleanup temp file
       fs.unlink(reportFile).catch(() => {});
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        reject(new Error('Gitleaks is not installed. Install with: brew install gitleaks'));
+        reject(new Error('Gitleaks is not installed. Ensure the Docker image was built with the Dockerfile (not Nixpacks) and gitleaks is present in the container.'));
       } else {
         reject(error);
       }

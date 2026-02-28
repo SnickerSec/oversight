@@ -27,20 +27,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-venv \
     ca-certificates \
+    apt-transport-https \
+    gnupg \
+    lsb-release \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Trivy
-RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+# Install Trivy via official apt repository
+RUN curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor -o /usr/share/keyrings/trivy.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" \
+      > /etc/apt/sources.list.d/trivy.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends trivy && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install Gitleaks
-RUN GITLEAKS_VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/') && \
-    echo "Installing Gitleaks v${GITLEAKS_VERSION}" && \
-    wget -q -O /tmp/gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" && \
+# Install Gitleaks (pinned version with architecture detection)
+ARG GITLEAKS_VERSION=8.21.2
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then GL_ARCH="x64"; \
+    elif [ "$ARCH" = "arm64" ]; then GL_ARCH="arm64"; \
+    else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
+    echo "Installing Gitleaks v${GITLEAKS_VERSION} for ${GL_ARCH}" && \
+    wget -q --tries=3 -O /tmp/gitleaks.tar.gz \
+      "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GL_ARCH}.tar.gz" && \
     tar -xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks && \
     chmod +x /usr/local/bin/gitleaks && \
     rm /tmp/gitleaks.tar.gz
 
-# Install Semgrep
+# Install Semgrep in a virtual environment
 RUN python3 -m venv /opt/semgrep-venv && \
     /opt/semgrep-venv/bin/pip install --no-cache-dir semgrep && \
     ln -s /opt/semgrep-venv/bin/semgrep /usr/local/bin/semgrep

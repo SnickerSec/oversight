@@ -35,7 +35,7 @@ export async function runTrivy(repoDir: string): Promise<TrivyResult> {
       fs.unlink(reportFile).catch(() => {});
       // Check if trivy is installed
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        reject(new Error('Trivy is not installed. Install with: brew install trivy'));
+        reject(new Error('Trivy is not installed. Ensure the Docker image was built with the Dockerfile (not Nixpacks) and trivy is present in the container.'));
       } else {
         reject(error);
       }

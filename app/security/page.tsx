@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, X, Filter, ChevronDown, ChevronUp, Copy, Check, AlertTriangle, Zap, KeyRound, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Search, X, Filter, ChevronDown, ChevronUp, Copy, Check, AlertTriangle, Zap, KeyRound, CheckCircle2, ExternalLink, CircleAlert } from 'lucide-react';
 
 interface DashboardData {
   repos: RepoWithDetails[];
@@ -38,6 +38,18 @@ interface UnifiedAlert {
   secretType?: string;
   createdAt: string;
   htmlUrl?: string;
+}
+
+interface ToolStatus {
+  available: boolean;
+  version: string | null;
+}
+
+interface ToolsStatus {
+  allAvailable: boolean;
+  trivy: ToolStatus;
+  gitleaks: ToolStatus;
+  semgrep: ToolStatus;
 }
 
 async function fetchData(): Promise<DashboardData> {
@@ -67,6 +79,9 @@ export default function SecurityPage() {
   const [sortBy, setSortBy] = useState<'severity' | 'date' | 'repo'>('severity');
   const [sourceFilter, setSourceFilter] = useState<Source>('all');
 
+  // Tool availability state
+  const [toolsStatus, setToolsStatus] = useState<ToolsStatus | null>(null);
+
   // Scanning state
   const [scanning, setScanning] = useState<Record<string, boolean>>({});
   const [scanJobs, setScanJobs] = useState<Record<string, ScanJob>>({});
@@ -80,6 +95,21 @@ export default function SecurityPage() {
 
   const repos = data?.repos || [];
   const hasToken = data?.hasToken ?? false;
+
+  // Fetch tool availability on mount
+  useEffect(() => {
+    async function checkTools() {
+      try {
+        const res = await fetch('/api/security/tools');
+        if (res.ok) {
+          setToolsStatus(await res.json());
+        }
+      } catch {
+        // Silently fail — banner just won't show
+      }
+    }
+    checkTools();
+  }, []);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -589,6 +619,41 @@ export default function SecurityPage() {
           )}
         </div>
       </div>
+
+      {/* Tool Availability Warning */}
+      {toolsStatus && !toolsStatus.allAvailable && (
+        <Card className="p-4 border-[var(--accent-orange)]/50 bg-[var(--accent-orange)]/5">
+          <div className="flex items-start gap-3">
+            <CircleAlert className="w-5 h-5 text-[var(--accent-orange)] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium">Some security tools are not available</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Local scans require these tools to be installed in the Docker container. Ensure Coolify is using the Dockerfile build (not Nixpacks).
+              </p>
+              <div className="flex gap-4 mt-2 text-xs">
+                {!toolsStatus.trivy.available && (
+                  <span className="text-[var(--accent-red)]">Trivy: missing</span>
+                )}
+                {toolsStatus.trivy.available && (
+                  <span className="text-[var(--accent-green)]">Trivy: {toolsStatus.trivy.version}</span>
+                )}
+                {!toolsStatus.gitleaks.available && (
+                  <span className="text-[var(--accent-red)]">Gitleaks: missing</span>
+                )}
+                {toolsStatus.gitleaks.available && (
+                  <span className="text-[var(--accent-green)]">Gitleaks: {toolsStatus.gitleaks.version}</span>
+                )}
+                {!toolsStatus.semgrep.available && (
+                  <span className="text-[var(--accent-red)]">Semgrep: missing</span>
+                )}
+                {toolsStatus.semgrep.available && (
+                  <span className="text-[var(--accent-green)]">Semgrep: {toolsStatus.semgrep.version}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Sidebar + Main Content */}
       <div className="flex gap-6">

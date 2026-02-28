@@ -38,7 +38,7 @@ export async function runSemgrep(repoDir: string): Promise<SemgrepResult> {
       // Cleanup temp file
       fs.unlink(reportFile).catch(() => {});
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        reject(new Error('Semgrep is not installed. Install with: pip install semgrep'));
+        reject(new Error('Semgrep is not installed. Ensure the Docker image was built with the Dockerfile (not Nixpacks) and semgrep is present in the container.'));
       } else {
         reject(error);
       }
