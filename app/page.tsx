@@ -166,8 +166,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
 
         {/* Repositories Card */}
-        <Link href="/repos">
-          <Card className="p-4 hover:border-[var(--accent)] transition-colors">
+        <Link href="/repos" className="h-full">
+          <Card className="p-4 h-full hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <BookMarked className="w-5 h-5 text-[var(--accent)]" />
@@ -190,8 +190,8 @@ export default function Dashboard() {
         </Link>
 
         {/* Security Card */}
-        <Link href="/security">
-          <Card className="p-4 hover:border-[var(--accent)] transition-colors">
+        <Link href="/security" className="h-full">
+          <Card className="p-4 h-full hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-[var(--accent-red)]" />
@@ -207,8 +207,8 @@ export default function Dashboard() {
         </Link>
 
         {/* Railway Card */}
-        <Link href="/railway">
-          <Card className="p-4 hover:border-[var(--accent)] transition-colors">
+        <Link href="/railway" className="h-full">
+          <Card className="p-4 h-full hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <TrainFront className="w-5 h-5 text-[var(--accent-purple)]" />
@@ -224,8 +224,8 @@ export default function Dashboard() {
         </Link>
 
         {/* Supabase Card */}
-        <Link href="/supabase">
-          <Card className="p-4 hover:border-[var(--accent)] transition-colors">
+        <Link href="/supabase" className="h-full">
+          <Card className="p-4 h-full hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Database className="w-5 h-5 text-[var(--accent-green)]" />
@@ -241,8 +241,8 @@ export default function Dashboard() {
         </Link>
 
         {/* GCP Card */}
-        <Link href="/gcp">
-          <Card className="p-4 hover:border-[var(--accent)] transition-colors">
+        <Link href="/gcp" className="h-full">
+          <Card className="p-4 h-full hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Cloud className="w-5 h-5 text-[var(--accent-orange)]" />
@@ -267,8 +267,8 @@ export default function Dashboard() {
         </Link>
 
         {/* ElevenLabs Card */}
-        <Link href="/elevenlabs">
-          <Card className="p-4 hover:border-[var(--accent)] transition-colors">
+        <Link href="/elevenlabs" className="h-full">
+          <Card className="p-4 h-full hover:border-[var(--accent)] transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <AudioLines className="w-5 h-5 text-[var(--accent)]" />
